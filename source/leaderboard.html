@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Таблица лидеров</title>
+    <link rel="stylesheet" href="./leaderboard.css" />
+  </head>
+
+  <body>
+    <div class="page" data-role="page">
+      <header class="top" data-role="top">
+        <div class="top__header">
+          <h1 class="title">Таблица лидеров</h1>
+        </div>
+
+        <section class="podium" aria-label="Топ 3 лидера" data-role="podium"></section>
+      </header>
+
+      <main class="middle" aria-label="Таблица рейтинга">
+        <div class="table-card" data-role="table-card">
+          <div class="table-card__header">
+            <div class="table-title" id="table-title">—</div>
+            <div class="table-hint" id="table-hint">—</div>
+          </div>
+
+          <div class="table-wrap" id="table-wrap"></div>
+
+          <div class="legend is-hidden" id="table-legend" aria-label="Пояснение цветов">
+            <div class="legend__item">
+              <span class="legend__swatch legend__swatch--grey" aria-hidden="true"></span>
+              План выполняется
+            </div>
+            <div class="legend__item">
+              <span class="legend__swatch legend__swatch--yellow" aria-hidden="true"></span>
+              План не выполняется
+            </div>
+            <div class="legend__item">
+              <span class="legend__swatch legend__swatch--green" aria-hidden="true"></span>
+              План перевыполняется
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer class="bottom" aria-label="Приз недели" data-role="footer">
+        <div class="prize">
+          <div class="prize__image" aria-hidden="true">
+            <div class="prize__badge">Сертификат</div>
+          </div>
+          <div class="prize__content">
+            <div class="prize__title" id="prize-title">Приз недели</div>
+            <div class="prize__text" id="prize-text"></div>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <script>
+      (function () {
+        const SWITCH_MS = 30_000;
+        const page = document.querySelector('[data-role="page"]');
+        const topBlock = document.querySelector('[data-role="top"]');
+        const footer = document.querySelector('[data-role="footer"]');
+        const podium = document.querySelector('[data-role="podium"]');
+        const tableTitle = document.getElementById('table-title');
+        const tableHint = document.getElementById('table-hint');
+        const tableWrap = document.getElementById('table-wrap');
+        const tableLegend = document.getElementById('table-legend');
+        const prizeTitle = document.getElementById('prize-title');
+        const prizeText = document.getElementById('prize-text');
+
+        if (!page || !topBlock || !footer || !podium || !tableTitle || !tableHint || !tableWrap || !tableLegend) return;
+
+        const moneyTable = {
+          title: 'Рейтинг отделов',
+          hint: '',
+          columns: [
+            { key: 'name', label: 'ФИО', align: 'left' },
+            { key: 'plan', label: 'Выполнение', align: 'right' },
+            { key: 'conv', label: 'Конверсия', align: 'right' },
+            { key: 'profit', label: 'Прибыль', align: 'right' },
+            { key: 'growth', label: 'Рост', align: 'right' },
+          ],
+          rows: [
+            { name: 'Разгрузчики', plan: '128%', conv: '18,4%', profit: '1 250 000', growth: '+124' },
+            { name: 'Атлант', plan: '117%', conv: '16,1%', profit: '980 000', growth: '+97' },
+            { name: 'Артель', plan: '111%', conv: '15,6%', profit: '870 000', growth: '+83' },
+            { name: 'Спецпарк 24', plan: '104%', conv: '14,8%', profit: '760 000', growth: '+79' },
+            { name: 'Разгрузчики 2', plan: '101%', conv: '14,2%', profit: '705 000', growth: '+66' },
+            { name: 'Артель 2', plan: '98%', conv: '13,9%', profit: '690 000', growth: '+61' },
+            { name: 'Рукастер', plan: '96%', conv: '13,1%', profit: '645 000', growth: '+58' },
+            { name: 'Спецпарк 24-2', plan: '93%', conv: '12,7%', profit: '610 000', growth: '+52' },
+            { name: 'Спецпарк 24-3', plan: '90%', conv: '12,0%', profit: '575 000', growth: '+49' },
+            { name: 'Разгрузчики KZ', plan: '87%', conv: '11,4%', profit: '545 000', growth: '+44' },
+            { name: 'Cleanster', plan: '87%', conv: '11,4%', profit: '545 000', growth: '+44' },
+            { name: 'Атлант 2', plan: '87%', conv: '11,4%', profit: '545 000', growth: '+44' },
+            { name: 'Спецпарк 24-4', plan: '87%', conv: '11,4%', profit: '545 000', growth: '+44' },
+            { name: 'Разгрузчики 3', plan: '87%', conv: '11,4%', profit: '545 000', growth: '+44' },
+            { name: 'Разгрузчики 4', plan: '87%', conv: '11,4%', profit: '545 000', growth: '+44' },
+          ],
+        };
+
+        const participantsTable = {
+          title: 'Конкурс',
+          hint: '',
+          columns: moneyTable.columns,
+          rows: [
+            { name: 'Громов Павел', plan: '86%', conv: '10,2%', profit: '420 000', growth: '+31' },
+            { name: 'Котова Ирина', plan: '92%', conv: '11,7%', profit: '505 000', growth: '+38' },
+            { name: 'Белов Сергей', plan: '95%', conv: '12,3%', profit: '560 000', growth: '+41' },
+            { name: 'Лебедева Юлия', plan: '88%', conv: '10,9%', profit: '455 000', growth: '+33' },
+            { name: 'Морозов Виктор', plan: '91%', conv: '11,4%', profit: '490 000', growth: '+37' },
+            { name: 'Зайцева Елена', plan: '84%', conv: '9,8%', profit: '405 000', growth: '+28' },
+            { name: 'Волков Денис', plan: '89%', conv: '10,7%', profit: '470 000', growth: '+35' },
+            { name: 'Крылова Татьяна', plan: '93%', conv: '11,9%', profit: '520 000', growth: '+39' },
+            { name: 'Орехов Алексей', plan: '82%', conv: '9,5%', profit: '390 000', growth: '+26' },
+            { name: 'Казакова Светлана', plan: '90%', conv: '11,1%', profit: '485 000', growth: '+36' },
+          ],
+        };
+
+        const slides = [
+          {
+            id: 'leaders',
+            showTop: true,
+            showFooter: true,
+            table: moneyTable,
+            prize: {
+              title: 'Приз недели',
+              text: 'Победитель рейтинга получает сертификат номиналом 10 000 ₽. Приз выдается после закрытия недели и подтверждения результатов.',
+            },
+            leaders: [
+              { place: 1, name: 'Иванов Иван', metric: 'Прибыль: 1 250 000' },
+              { place: 2, name: 'Петров Пётр', metric: 'Прибыль: 980 000' },
+              { place: 3, name: 'Сидорова Анна', metric: 'Прибыль: 870 000' },
+            ],
+          },
+          {
+            id: 'departments',
+            showTop: false,
+            showFooter: false,
+            table: {
+              title: 'План / Факт по отделам',
+              hint: '',
+              columns: [
+                { key: 'dept', label: 'Отдел', align: 'left' },
+                { key: 'plan', label: 'План', align: 'right' },
+                { key: 'fact', label: 'Факт', align: 'right' },
+              ],
+              rows: [],
+              mode: 'departments',
+            },
+            showLegend: true,
+          },
+          {
+            id: 'participants',
+            showTop: true,
+            showFooter: true,
+            table: participantsTable,
+            prize: {
+              title: 'Приз недели',
+              text: 'Сертификат: 10 000 ₽. Дополнительный бонус для победителя — выходной день по согласованию с руководителем.',
+            },
+            leaders: [
+              { place: 1, name: 'Крылова Татьяна', metric: 'Рост базы: +156' },
+              { place: 2, name: 'Белов Сергей', metric: 'Рост базы: +131' },
+              { place: 3, name: 'Котова Ирина', metric: 'Рост базы: +118' },
+            ],
+          },
+        ];
+
+        function randInt(min, max) {
+          return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function formatNumber(n) {
+          return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        }
+
+        function getDepartmentRows() {
+          const departments = [
+            'Разгрузчики',
+            'Атлант',
+            'Артель',
+            'Розница',
+            'B2B',
+            'B2C',
+            'Логистика',
+            'Контакт-центр',
+            'Партнёры',
+            'Развитие',
+          ];
+
+          const rows = [];
+          for (let i = 0; i < 10; i++) {
+            const dept = departments[i] ?? `Отдел ${i + 1}`;
+            const plan = randInt(120_000, 980_000);
+            const fact = randInt(60_000, 1_250_000);
+
+            let status = 'row--grey';
+            if (fact < plan) status = 'row--yellow';
+            if (fact > plan) status = 'row--green';
+
+            rows.push({ dept, plan: formatNumber(plan), fact: formatNumber(fact), __rowClass: status });
+          }
+
+          return rows;
+        }
+
+        function renderPodium(leaders) {
+          podium.innerHTML = '';
+          if (!leaders || leaders.length !== 3) return;
+
+          const byPlace = {
+            1: leaders.find((x) => x.place === 1),
+            2: leaders.find((x) => x.place === 2),
+            3: leaders.find((x) => x.place === 3),
+          };
+
+          const order = [byPlace[2], byPlace[1], byPlace[3]];
+          const variants = ['second', 'first', 'third'];
+
+          order.forEach((item, idx) => {
+            if (!item) return;
+            const variant = variants[idx];
+
+            const wrapper = document.createElement('div');
+            wrapper.className = `podium__item podium__item--${variant}`;
+
+            const card = document.createElement('div');
+            card.className = `podium__card${item.place === 1 ? ' podium__card--winner' : ''}`;
+
+            const place = document.createElement('div');
+            place.className = 'podium__place';
+            place.textContent = String(item.place);
+
+            const name = document.createElement('div');
+            name.className = 'podium__name';
+            name.textContent = item.name;
+
+            const metric = document.createElement('div');
+            metric.className = 'podium__metric';
+            metric.textContent = item.metric;
+
+            card.appendChild(place);
+            card.appendChild(name);
+            card.appendChild(metric);
+
+            const base = document.createElement('div');
+            base.className = `podium__base podium__base--${variant}`;
+
+            wrapper.appendChild(card);
+            wrapper.appendChild(base);
+            podium.appendChild(wrapper);
+          });
+        }
+
+        function renderTable(tableDef) {
+          tableTitle.textContent = tableDef.title;
+          tableHint.textContent = tableDef.hint;
+          tableWrap.innerHTML = '';
+
+          const table = document.createElement('table');
+          table.className = `leader-table${tableDef.mode === 'departments' ? ' leader-table--compact' : ''}`;
+
+          const thead = document.createElement('thead');
+          const trHead = document.createElement('tr');
+          tableDef.columns.forEach((c) => {
+            const th = document.createElement('th');
+            th.textContent = c.label;
+            th.className = c.align === 'right' ? 'col-num' : 'col-name';
+            trHead.appendChild(th);
+          });
+          thead.appendChild(trHead);
+
+          const tbody = document.createElement('tbody');
+          tableDef.rows.forEach((r) => {
+            const tr = document.createElement('tr');
+            if (r.__rowClass) tr.className = r.__rowClass;
+            tableDef.columns.forEach((c) => {
+              const td = document.createElement('td');
+              td.className = c.align === 'right' ? 'col-num' : 'col-name';
+              td.textContent = r[c.key] ?? '';
+              tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+          });
+
+          table.appendChild(thead);
+          table.appendChild(tbody);
+          tableWrap.appendChild(table);
+        }
+
+        function renderPrize(prize) {
+          if (!prizeTitle || !prizeText) return;
+          prizeTitle.textContent = prize?.title ?? 'Приз недели';
+          prizeText.textContent = prize?.text ?? '';
+        }
+
+        function showSlide(slide) {
+          const showTop = Boolean(slide.showTop);
+          const showFooter = Boolean(slide.showFooter);
+          const tableOnly = !showTop && !showFooter;
+
+          topBlock.classList.toggle('is-hidden', !showTop);
+          footer.classList.toggle('is-hidden', !showFooter);
+          page.classList.toggle('page--table-only', tableOnly);
+
+          if (showTop) {
+            renderPodium(slide.leaders);
+          }
+
+          if (slide.table?.mode === 'departments') {
+            slide.table.rows = getDepartmentRows();
+          }
+
+          renderTable(slide.table);
+          renderPrize(slide.prize);
+          tableLegend.classList.toggle('is-hidden', !slide.showLegend);
+        }
+
+        let idx = 0;
+        showSlide(slides[idx]);
+
+        setInterval(function () {
+          idx = (idx + 1) % slides.length;
+          showSlide(slides[idx]);
+        }, SWITCH_MS);
+      })();
+    </script>
+  </body>
+</html>

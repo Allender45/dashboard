@@ -1,0 +1,49 @@
+import type { SheetTable } from "../../api/googleSheets";
+
+export function DataTable(props: { table: SheetTable }) {
+    const { columns, rows } = props.table;
+
+    return (
+        <div style={{ overflow: "auto", border: "1px solid #ddd" }}>
+            <table style={{ borderCollapse: "collapse", width: "100%" }}>
+                <thead>
+                <tr>
+                    {columns.map((c) => (
+                        <th
+                            key={c.key}
+                            style={{
+                                textAlign: "left",
+                                padding: "8px 10px",
+                                borderBottom: "1px solid #ddd",
+                                background: "#fafafa",
+                                position: "sticky",
+                                top: 0,
+                            }}
+                        >
+                            {c.label}
+                        </th>
+                    ))}
+                </tr>
+                </thead>
+                <tbody>
+                {rows.map((r, i: number) => (
+                    <tr key={i}>
+                        {columns.map((c, j) => (
+                            <td
+                                key={c.key}
+                                style={{
+                                    padding: "8px 10px",
+                                    borderBottom: "1px solid #eee",
+                                    whiteSpace: "nowrap",
+                                }}
+                            >
+                                {r[j] ?? ""}
+                            </td>
+                        ))}
+                    </tr>
+                ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}

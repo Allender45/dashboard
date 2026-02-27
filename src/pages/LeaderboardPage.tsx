@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Podium, type PodiumLeader } from "../components/leaderboard/Podium";
 import { Legend } from "../components/leaderboard/Legend";
 import { Prize } from "../components/leaderboard/Prize";
@@ -6,6 +6,7 @@ import { LeaderboardTable, type LeaderboardColumn, type LeaderboardRow } from ".
 
 const SWITCH_MS = 30_000;
 const NEWS_IMG_SWITCH_MS = 5_000;
+const REFRESH_MS = 10 * 60_000;
 
 type LeaderboardSlide = {
   id: "leaders" | "departments" | "participants";
@@ -207,15 +208,22 @@ export function LeaderboardPage() {
   const [newsImgIdx, setNewsImgIdx] = useState(0);
   const [remoteNews, setRemoteNews] = useState<NewsSlide | null>(null);
   const [remoteContestSlide, setRemoteContestSlide] = useState<LeaderboardSlide | null>(null);
+  const newsInFlightRef = useRef(false);
+  const contestInFlightRef = useRef(false);
 
   const DEFAULT_API_BASE = `${window.location.protocol}//${window.location.hostname}:4000`;
   const API_BASE = (process.env.REACT_APP_API_BASE || DEFAULT_API_BASE).replace(/\/$/, "");
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/public/news/latest`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: any) => {
-        const n = data?.news;
+    const controller = new AbortController();
+
+    async function loadNews() {
+      if (newsInFlightRef.current) return;
+      newsInFlightRef.current = true;
+      try {
+        const r = await fetch(`${API_BASE}/api/public/news/latest`, { signal: controller.signal });
+        const data = r.ok ? await r.json() : null;
+        const n = (data as any)?.news;
         if (!n) return;
 
         const images = Array.isArray(n.images)
@@ -231,14 +239,30 @@ export function LeaderboardPage() {
           text: String(n.text ?? ""),
           images,
         });
-      })
-      .catch(() => {});
+      } catch {
+      } finally {
+        newsInFlightRef.current = false;
+      }
+    }
+
+    loadNews();
+    const t = window.setInterval(loadNews, REFRESH_MS);
+    return () => {
+      window.clearInterval(t);
+      controller.abort();
+      newsInFlightRef.current = false;
+    };
   }, [API_BASE]);
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/public/contest-tv/results`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: ContestTvResults | null) => {
+    const controller = new AbortController();
+
+    async function loadContest() {
+      if (contestInFlightRef.current) return;
+      contestInFlightRef.current = true;
+      try {
+        const r = await fetch(`${API_BASE}/api/public/contest-tv/results`, { signal: controller.signal });
+        const data: ContestTvResults | null = r.ok ? await r.json() : null;
         if (!data) return;
 
         const contestName = String(data.contest?.name ?? "Конкурс");
@@ -283,8 +307,19 @@ export function LeaderboardPage() {
             rows,
           },
         });
-      })
-      .catch(() => {});
+      } catch {
+      } finally {
+        contestInFlightRef.current = false;
+      }
+    }
+
+    loadContest();
+    const t = window.setInterval(loadContest, REFRESH_MS);
+    return () => {
+      window.clearInterval(t);
+      controller.abort();
+      contestInFlightRef.current = false;
+    };
   }, [API_BASE]);
 
   const runtimeSlides = useMemo(() => {

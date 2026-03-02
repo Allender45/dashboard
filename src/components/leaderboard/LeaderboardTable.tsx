@@ -33,7 +33,7 @@ export function LeaderboardTable(props: {
                         {columns.map((c) => (
                             <th
                                 key={String(c.key)}
-                                className={`sticky top-0 border-b border-white/10 bg-[rgba(11,18,32,0.88)] p-3 text-[25px] uppercase tracking-[0.3px] backdrop-blur-[10px] ${
+                                className={`sticky top-0 border-b border-white/10 bg-[rgba(11,18,32,0.88)] p-3 text-[20px] uppercase tracking-[0.3px] backdrop-blur-[10px] ${
                                     c.align === "right"
                                         ? "w-[17%] text-right tabular-nums"
                                         : c.align === "center"
@@ -54,7 +54,7 @@ export function LeaderboardTable(props: {
                                 {columns.map((c) => (
                                     <td
                                         key={String(c.key)}
-                                        className={`border-b border-white/10 p-3 text-[25px] ${
+                                        className={`border-b border-white/10 p-3 text-[20px] ${
                                             c.align === "right"
                                                 ? "w-[17%] text-right tabular-nums"
                                                 : c.align === "center"

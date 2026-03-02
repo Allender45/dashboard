@@ -3,6 +3,8 @@ import { Podium, type PodiumLeader } from "../components/leaderboard/Podium";
 import { Legend } from "../components/leaderboard/Legend";
 import { Prize } from "../components/leaderboard/Prize";
 import { LeaderboardTable, type LeaderboardColumn, type LeaderboardRow } from "../components/leaderboard/LeaderboardTable";
+import { env, requireEnv } from "../config/env";
+import { useDepartmentMetricsTable } from "../hooks/useSheetTable";
 
 const SWITCH_MS = 30_000;
 const NEWS_IMG_SWITCH_MS = 5_000;
@@ -137,7 +139,12 @@ const slides: Slide[] = [
     kind: "leaderboard",
     showTop: true,
     showFooter: true,
-    table: moneyTable,
+    table: {
+      title: "Рейтинг отделов",
+      hint: "",
+      columns: [],
+      rows: [],
+    },
     prize: {
       title: "Приз недели",
       text: "Победитель рейтинга получает сертификат номиналом 10 000 ₽. Приз выдается после закрытия недели и подтверждения результатов.",
@@ -183,24 +190,6 @@ const slides: Slide[] = [
       { place: 3, name: "Котова Ирина", metric: "Рост базы: +118" },
     ],
   },
-  {
-    id: "news",
-    kind: "news",
-    title: "ПЕРВЫЙ ПАДЕЛ-ТЕННИС В ИСТОРИИ КОМПАНИИ!",
-    text:
-      "Вчера, 04.02.2026, на спортивной площадке развернулись нешуточные баталии! \n" +
-      "Состоялась дебютная игра в падел-теннис в рамках корпоративного чемпионата! 🎾\n\n" +
-      "Ребята выложились на все 100% — было море драйва, адреналина и настоящий шквал эмоций! 💥😄\n\n" +
-      "🏆Пришло время назвать имена героев : \n\n" +
-      "🥇 1 МЕСТО — Александр Змерзлый! Мощно и непобедимо!\n" +
-      "🥈 2 МЕСТО — Марк Архипов! Блистательная игра!\n" +
-      "🥉 3 МЕСТО — Евгений Мухортиков! Отличный результат!\n\n" +
-      "Ребята, вы крутые! 👏 Гордимся вашим спортивным духом и волей к победе!\n\n" +
-      "Кто следующий бросит вызов чемпионам? 😉\n\n" +
-      "#КорпоративныйСпорт #НашаКоманда #ПаделТеннис #Поздравляем #Чемпионы\n\n" +
-      "С уважением, команда HR 🫡",
-    images: ["/hr/1.jpg", "/hr/2.jpg", "/hr/3.jpg", "/hr/4.jpg", "/hr/5.jpg", "/hr/6.jpg", "/hr/7.jpg", "/hr/8.jpg"],
-  },
 ];
 
 export function LeaderboardPage() {
@@ -210,6 +199,19 @@ export function LeaderboardPage() {
   const [remoteContestSlide, setRemoteContestSlide] = useState<LeaderboardSlide | null>(null);
   const newsInFlightRef = useRef(false);
   const contestInFlightRef = useRef(false);
+
+  const sheetsInput = useMemo(() => {
+    try {
+      return {
+        spreadsheetId: requireEnv("REACT_APP_SHEETS_SPREADSHEET_ID", env.spreadsheetId),
+        gid: requireEnv("REACT_APP_SHEETS_GID", env.gid),
+      };
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const sheetTableState = useDepartmentMetricsTable(sheetsInput ?? { spreadsheetId: "", gid: "" });
 
   const DEFAULT_API_BASE = `${window.location.protocol}//${window.location.hostname}:4000`;
   const API_BASE = (process.env.REACT_APP_API_BASE || DEFAULT_API_BASE).replace(/\/$/, "");
@@ -351,11 +353,39 @@ export function LeaderboardPage() {
 
   const computedTable = useMemo(() => {
     if (slide.kind !== "leaderboard") return null;
+    if (slide.id === "leaders" && sheetTableState.status === "success") {
+      const t = sheetTableState.data;
+      const columns: LeaderboardColumn[] = t.headers.map((label, i) => {
+        const key = `c${i}`;
+        return {
+          key,
+          label: String(label || ""),
+          align: i === 0 ? "left" : "right",
+        };
+      });
+
+      const rows: LeaderboardRow[] = t.rows.map((r) => ({
+        c0: r.department,
+        c1: r.convPhys,
+        c2: r.leadReturn,
+        c3: r.convJur,
+        c4: r.totalDefectPct,
+        c5: r.planForecast,
+        c6: r.points,
+      }));
+
+      return {
+        ...slide.table,
+        period: t.period,
+        columns,
+        rows,
+      };
+    }
     if (slide.table.mode === "departments") {
       return { ...slide.table, rows: getDepartmentRows() };
     }
     return slide.table;
-  }, [slide]);
+  }, [sheetTableState.status, slide]);
 
   const tableOnly = slide.kind === "leaderboard" && !slide.showTop && !slide.showFooter;
 

@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Podium, type PodiumLeader } from "../components/leaderboard/Podium";
-import { Legend } from "../components/leaderboard/Legend";
-import { Prize } from "../components/leaderboard/Prize";
-import { LeaderboardTable, type LeaderboardColumn, type LeaderboardRow } from "../components/leaderboard/LeaderboardTable";
+import { type PodiumLeader } from "../components/leaderboard/Podium";
+import { type LeaderboardColumn, type LeaderboardRow } from "../components/leaderboard/LeaderboardTable";
 import { env, requireEnv } from "../config/env";
 import { useDepartmentMetricsTable } from "../hooks/useSheetTable";
+import { Slideshow } from "../components/slideshow/Slideshow";
+import { DepartmentLeaderboardSlide } from "../components/slideshow/DepartmentLeaderboardSlide";
+import { PlanFactSlide } from "../components/slideshow/PlanFactSlide";
+import { ContestSlide } from "../components/slideshow/ContestSlide";
+import { NewsSlide } from "../components/slideshow/NewsSlide";
 
 const SWITCH_MS = 30_000;
-const NEWS_IMG_SWITCH_MS = 5_000;
 const REFRESH_MS = 10 * 60_000;
 
 type LeaderboardSlide = {
@@ -50,10 +52,6 @@ type ContestTvResults = {
   ranking?: Array<{ place?: number; employeeId?: string; employeeName?: string; value?: string }>;
 };
 
-type Slide = LeaderboardSlide | NewsSlide;
-
-type LeaderboardTableData = LeaderboardSlide["table"];
-
 function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -91,112 +89,10 @@ function getDepartmentRows(): LeaderboardRow[] {
   return rows;
 }
 
-const moneyTable: LeaderboardTableData = {
-  title: "Рейтинг отделов",
-  hint: "",
-  columns: [
-    { key: "name", label: "ФИО", align: "left" },
-    { key: "plan", label: "Выполнение", align: "right" },
-    { key: "conv", label: "Конверсия", align: "right" },
-    { key: "profit", label: "Прибыль", align: "right" },
-    { key: "growth", label: "Рост", align: "right" },
-  ],
-  rows: [
-    { name: "Разгрузчики", plan: "128%", conv: "18,4%", profit: "1 250 000", growth: "+124" },
-    { name: "Атлант", plan: "117%", conv: "16,1%", profit: "980 000", growth: "+97" },
-    { name: "Артель", plan: "111%", conv: "15,6%", profit: "870 000", growth: "+83" },
-    { name: "Спецпарк 24", plan: "104%", conv: "14,8%", profit: "760 000", growth: "+79" },
-    { name: "Разгрузчики 2", plan: "101%", conv: "14,2%", profit: "705 000", growth: "+66" },
-    { name: "Артель 2", plan: "98%", conv: "13,9%", profit: "690 000", growth: "+61" },
-    { name: "Рукастер", plan: "96%", conv: "13,1%", profit: "645 000", growth: "+58" },
-    { name: "Спецпарк 24-2", plan: "93%", conv: "12,7%", profit: "610 000", growth: "+52" },
-    { name: "Спецпарк 24-3", plan: "90%", conv: "12,0%", profit: "575 000", growth: "+49" },
-    { name: "Разгрузчики KZ", plan: "87%", conv: "11,4%", profit: "545 000", growth: "+44" },
-  ],
-};
-
-const participantsTable: LeaderboardTableData = {
-  title: "Конкурс",
-  hint: "",
-  columns: moneyTable.columns,
-  rows: [
-    { name: "Громов Павел", plan: "86%", conv: "10,2%", profit: "420 000", growth: "+31" },
-    { name: "Котова Ирина", plan: "92%", conv: "11,7%", profit: "505 000", growth: "+38" },
-    { name: "Белов Сергей", plan: "95%", conv: "12,3%", profit: "560 000", growth: "+41" },
-    { name: "Лебедева Юлия", plan: "88%", conv: "10,9%", profit: "455 000", growth: "+33" },
-    { name: "Морозов Виктор", plan: "91%", conv: "11,4%", profit: "490 000", growth: "+37" },
-    { name: "Зайцева Елена", plan: "84%", conv: "9,8%", profit: "405 000", growth: "+28" },
-    { name: "Волков Денис", plan: "89%", conv: "10,7%", profit: "470 000", growth: "+35" },
-    { name: "Крылова Татьяна", plan: "93%", conv: "11,9%", profit: "520 000", growth: "+39" },
-    { name: "Орехов Алексей", plan: "82%", conv: "9,5%", profit: "390 000", growth: "+26" },
-    { name: "Казакова Светлана", plan: "90%", conv: "11,1%", profit: "485 000", growth: "+36" },
-  ],
-};
-
-const slides: Slide[] = [
-  {
-    id: "leaders",
-    kind: "leaderboard",
-    showTop: true,
-    showFooter: true,
-    table: {
-      title: "Рейтинг отделов",
-      hint: "",
-      columns: [],
-      rows: [],
-    },
-    prize: {
-      title: "Приз недели",
-      text: "Победитель рейтинга получает сертификат номиналом 10 000 ₽. Приз выдается после закрытия недели и подтверждения результатов.",
-    },
-    leaders: [
-      { place: 1, name: "Иванов Иван", metric: "Прибыль: 1 250 000" },
-      { place: 2, name: "Петров Пётр", metric: "Прибыль: 980 000" },
-      { place: 3, name: "Сидорова Анна", metric: "Прибыль: 870 000" },
-    ],
-  },
-  {
-    id: "departments",
-    kind: "leaderboard",
-    showTop: false,
-    showFooter: false,
-    showLegend: true,
-    table: {
-      title: "План / Факт по отделам",
-      hint: "",
-      columns: [
-        { key: "dept", label: "Отдел", align: "left" },
-        { key: "plan", label: "План", align: "right" },
-        { key: "fact", label: "Факт", align: "right" },
-      ],
-      rows: [],
-      compact: true,
-      mode: "departments",
-    },
-  },
-  {
-    id: "participants",
-    kind: "leaderboard",
-    showTop: true,
-    showFooter: true,
-    table: participantsTable,
-    prize: {
-      title: "Приз недели",
-      text: "Сертификат: 10 000 ₽. Дополнительный бонус для победителя — выходной день по согласованию с руководителем.",
-    },
-    leaders: [
-      { place: 1, name: "Крылова Татьяна", metric: "Рост базы: +156" },
-      { place: 2, name: "Белов Сергей", metric: "Рост базы: +131" },
-      { place: 3, name: "Котова Ирина", metric: "Рост базы: +118" },
-    ],
-  },
-];
-
 export function LeaderboardPage() {
-  const [idx, setIdx] = useState(0);
-  const [newsImgIdx, setNewsImgIdx] = useState(0);
   const [remoteNews, setRemoteNews] = useState<NewsSlide | null>(null);
   const [remoteContestSlide, setRemoteContestSlide] = useState<LeaderboardSlide | null>(null);
+  const [isContestLoading, setIsContestLoading] = useState(true);
   const newsInFlightRef = useRef(false);
   const contestInFlightRef = useRef(false);
 
@@ -262,6 +158,7 @@ export function LeaderboardPage() {
     async function loadContest() {
       if (contestInFlightRef.current) return;
       contestInFlightRef.current = true;
+      setIsContestLoading(true);
       try {
         const r = await fetch(`${API_BASE}/api/public/contest-tv/results`, { signal: controller.signal });
         const data: ContestTvResults | null = r.ok ? await r.json() : null;
@@ -312,6 +209,7 @@ export function LeaderboardPage() {
       } catch {
       } finally {
         contestInFlightRef.current = false;
+        setIsContestLoading(false);
       }
     }
 
@@ -324,147 +222,144 @@ export function LeaderboardPage() {
     };
   }, [API_BASE]);
 
-  const runtimeSlides = useMemo(() => {
-    let base = slides;
-    if (remoteContestSlide) {
-      base = base.map((s) => (s.kind === "leaderboard" && s.id === "participants" ? remoteContestSlide : s));
+  const departmentLeaderboardData = useMemo(() => {
+    if (sheetTableState.status !== "success") {
+      return { columns: [], rows: [], period: "", leaders: [] };
     }
-    if (!remoteNews) return base;
-    const withoutNews = base.filter((s) => s.kind !== "news");
-    return [...withoutNews, remoteNews];
-  }, [remoteContestSlide, remoteNews]);
-
-  useEffect(() => {
-    const t = window.setInterval(() => setIdx((x) => (x + 1) % runtimeSlides.length), SWITCH_MS);
-    return () => window.clearInterval(t);
-  }, [runtimeSlides.length]);
-
-  const slide = runtimeSlides[idx] ?? runtimeSlides[0];
-
-  useEffect(() => {
-    if (slide.kind !== "news") return;
-    setNewsImgIdx(0);
-    const t = window.setInterval(
-      () => setNewsImgIdx((x) => (x + 1) % Math.max(1, slide.images.length)),
-      NEWS_IMG_SWITCH_MS,
-    );
-    return () => window.clearInterval(t);
-  }, [slide]);
-
-  const computedTable = useMemo(() => {
-    if (slide.kind !== "leaderboard") return null;
-    if (slide.id === "leaders" && sheetTableState.status === "success") {
-      const t = sheetTableState.data;
-      const columns: LeaderboardColumn[] = t.headers.map((label, i) => {
-        const key = `c${i}`;
-        return {
-          key,
-          label: String(label || ""),
-          align: i === 0 ? "left" : "right",
-        };
-      });
-
-      const rows: LeaderboardRow[] = t.rows.map((r) => ({
-        c0: r.department,
-        c1: r.convPhys,
-        c2: r.leadReturn,
-        c3: r.convJur,
-        c4: r.totalDefectPct,
-        c5: r.planForecast,
-        c6: r.points,
-      }));
-
+    const t = sheetTableState.data;
+    const columns: LeaderboardColumn[] = t.headers.map((label, i) => {
+      const key = `c${i}`;
       return {
-        ...slide.table,
-        period: t.period,
-        columns,
-        rows,
+        key,
+        label: String(label || ""),
+        align: i === 0 ? "left" : "right",
+      };
+    });
+
+    const rows: LeaderboardRow[] = t.rows.map((r) => ({
+      c0: r.department,
+      c1: r.convPhys,
+      c2: r.leadReturn,
+      c3: r.convJur,
+      c4: r.totalDefectPct,
+      c5: r.planForecast,
+      c6: r.points,
+    }));
+
+    const sortedByPoints = [...t.rows].sort((a, b) => {
+      const pointsA = parseFloat(String(a.points).replace(/[^\d.-]/g, "")) || 0;
+      const pointsB = parseFloat(String(b.points).replace(/[^\d.-]/g, "")) || 0;
+      return pointsB - pointsA;
+    });
+
+    const leaders: PodiumLeader[] = [];
+    let place = 0;
+    let lastPoints: number | null = null;
+    for (const r of sortedByPoints) {
+      const points = parseFloat(String(r.points).replace(/[^\d.-]/g, "")) || 0;
+      if (lastPoints === null || points !== lastPoints) {
+        place += 1;
+        lastPoints = points;
+      }
+      if (place > 3) break;
+      leaders.push({
+        place: place as 1 | 2 | 3,
+        name: String(r.department),
+        metric: `Баллы: ${String(r.points)}`,
+      });
+    }
+
+    return { columns, rows, period: t.period, leaders };
+  }, [sheetTableState]);
+
+  const planFactData = useMemo(() => {
+    return {
+      columns: [
+        { key: "dept", label: "Отдел", align: "left" as const },
+        { key: "plan", label: "План", align: "right" as const },
+        { key: "fact", label: "Факт", align: "right" as const },
+      ],
+      rows: getDepartmentRows(),
+    };
+  }, []);
+
+  const contestData = useMemo(() => {
+    if (remoteContestSlide) {
+      return {
+        title: remoteContestSlide.table.title,
+        period: remoteContestSlide.table.period,
+        metric: remoteContestSlide.table.metric,
+        columns: remoteContestSlide.table.columns,
+        rows: remoteContestSlide.table.rows,
+        leaders: remoteContestSlide.leaders ?? [],
+        prize: remoteContestSlide.prize,
+        showTop: remoteContestSlide.showTop,
+        showFooter: remoteContestSlide.showFooter,
+        isLoading: isContestLoading,
       };
     }
-    if (slide.table.mode === "departments") {
-      return { ...slide.table, rows: getDepartmentRows() };
+    return {
+      title: "Конкурс",
+      period: "",
+      metric: "",
+      columns: [],
+      rows: [],
+      leaders: [],
+      prize: undefined,
+      showTop: true,
+      showFooter: false,
+      isLoading: isContestLoading,
+    };
+  }, [remoteContestSlide, isContestLoading]);
+
+  const renderSlides = useMemo(() => {
+    const slideComponents = [
+      <DepartmentLeaderboardSlide
+        key="leaders"
+        title="Рейтинг отделов"
+        period={departmentLeaderboardData.period}
+        columns={departmentLeaderboardData.columns}
+        rows={departmentLeaderboardData.rows}
+        leaders={departmentLeaderboardData.leaders}
+        prize={{
+          title: "Приз",
+          text: "Победитель рейтинга получает 1% от фактической кассы.",
+        }}
+      />,
+      // <PlanFactSlide
+      //   key="departments"
+      //   title="План / Факт по отделам"
+      //   columns={planFactData.columns}
+      //   rows={planFactData.rows}
+      // />,
+      <ContestSlide
+        key="contest"
+        title={contestData.title}
+        period={contestData.period}
+        metric={contestData.metric}
+        columns={contestData.columns}
+        rows={contestData.rows}
+        leaders={contestData.leaders}
+        prize={contestData.prize}
+        showTop={contestData.showTop}
+        showFooter={contestData.showFooter}
+        isLoading={contestData.isLoading}
+      />,
+    ];
+
+    if (remoteNews) {
+      slideComponents.push(
+        <NewsSlide
+          key="news"
+          title={remoteNews.title}
+          text={remoteNews.text}
+          images={remoteNews.images}
+        />,
+      );
     }
-    return slide.table;
-  }, [sheetTableState.status, slide]);
 
-  const tableOnly = slide.kind === "leaderboard" && !slide.showTop && !slide.showFooter;
+    return slideComponents;
+  }, [departmentLeaderboardData, planFactData, contestData, remoteNews]);
 
-  return (
-    <div
-      className={`min-h-screen p-6 text-[#e8eefc] [background:radial-gradient(900px_480px_at_30%_10%,rgba(71,120,255,0.24),transparent_70%),radial-gradient(700px_420px_at_70%_40%,rgba(245,197,66,0.16),transparent_65%),radial-gradient(900px_520px_at_40%_95%,rgba(80,200,120,0.12),transparent_60%),#0b1220] ${
-        tableOnly || slide.kind === "news" ? "grid grid-rows-1" : "grid grid-rows-[20vh_60vh_15vh]"
-      } gap-4`}
-      data-role="page"
-    >
-      {slide.kind === "news" ? (
-        <main
-          className="grid grid-rows-[auto_1fr_auto] gap-4 overflow-hidden rounded-[16px] border border-white/10 bg-gradient-to-b from-white/10 to-white/5 p-[18px] shadow-[0_12px_28px_rgba(0,0,0,0.35)]"
-          aria-label="Новость"
-        >
-          <h1 className="text-center text-[44px] font-semibold leading-tight tracking-[0.2px]">{slide.title}</h1>
-
-          <div className="grid min-h-0 grid-rows-[1fr_auto] gap-3">
-            <div className="relative h-[46vh] overflow-hidden rounded-[14px] border border-white/10 bg-black/20">
-              <img
-                src={slide.images[newsImgIdx]}
-                alt={`HR ${newsImgIdx + 1}`}
-                className="h-full w-full object-contain"
-                draggable={false}
-              />
-            </div>
-
-            <div className="flex items-center justify-center gap-2">
-              {slide.images.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setNewsImgIdx(i)}
-                  className={`h-2 w-2 rounded-full transition ${i === newsImgIdx ? "bg-white/90" : "bg-white/30 hover:bg-white/50"}`}
-                  aria-label={`Показать изображение ${i + 1}`}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className="whitespace-pre-wrap rounded-[14px] border border-white/10 bg-white/5 p-4 text-[22px] leading-snug">
-            {slide.text}
-          </div>
-        </main>
-      ) : (
-        <>
-          <header
-            className={`${slide.showTop ? "" : "hidden"} grid grid-rows-[auto_1fr] gap-3.5 overflow-hidden rounded-[16px] border border-white/10 bg-gradient-to-b from-white/10 to-white/5 p-[18px] shadow-[0_12px_28px_rgba(0,0,0,0.35)]`}
-            data-role="top"
-          >
-            <div className="flex items-baseline justify-between gap-3">
-              <h1 className="m-auto text-[50px] tracking-[0.2px]">Конкурс</h1>
-            </div>
-
-            <Podium leaders={slide.leaders ?? []} />
-          </header>
-
-          <main
-            className="grid overflow-hidden rounded-[16px] border border-white/10 bg-gradient-to-b from-white/10 to-white/5 p-[18px] shadow-[0_12px_28px_rgba(0,0,0,0.35)]"
-            aria-label="Таблица рейтинга"
-          >
-            <div className="min-h-0 gap-3" data-role="table-card">
-              <LeaderboardTable
-                title={computedTable?.title ?? ""}
-                metric={computedTable?.metric ?? ""}
-                period={computedTable?.period ?? ""}
-                columns={computedTable?.columns ?? []}
-                rows={computedTable?.rows ?? []}
-                compact={computedTable?.compact}
-              />
-              <Legend visible={Boolean(slide.showLegend)} />
-            </div>
-          </main>
-
-          <div className={slide.showFooter ? "" : "hidden"}>
-            <Prize title={slide.prize?.title ?? "Приз недели"} text={slide.prize?.text ?? ""} />
-          </div>
-        </>
-      )}
-    </div>
-  );
+  return <Slideshow slides={renderSlides} switchMs={SWITCH_MS} />;
 }

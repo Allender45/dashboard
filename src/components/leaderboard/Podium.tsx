@@ -12,8 +12,8 @@ function variantByPlace(place: 1 | 2 | 3): "first" | "second" | "third" {
   return "third";
 }
 
-function Card(props: { leader: PodiumLeader; highlightWinner?: boolean; baseVariant: "first" | "second" | "third" }) {
-  const { leader, highlightWinner, baseVariant } = props;
+function Card(props: { leader: PodiumLeader; baseVariant: "first" | "second" | "third" }) {
+  const { leader, baseVariant } = props;
 
   const placeTone =
     baseVariant === "first"
@@ -63,7 +63,7 @@ export function Podium(props: { leaders: PodiumLeader[]; emptySlot?: ReactNode }
     <section className="grid grid-cols-[1fr_1.1fr_1fr] items-stretch gap-3.5 max-[920px]:grid-cols-1" aria-label="Топ 3 лидера">
       {ordered.map((leader) => {
         const variant = variantByPlace(leader.place);
-        return <Card key={leader.place} leader={leader} highlightWinner={leader.place === 1} baseVariant={variant} />;
+        return <Card key={leader.place} leader={leader} baseVariant={variant} />;
       })}
     </section>
   );

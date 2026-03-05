@@ -50,6 +50,7 @@ export function ContestSlide({
               period={period}
               columns={columns}
               rows={rows}
+              fontSize={30}
             />
           ) : (
             <div className="grid h-full place-items-center text-center text-[18px] text-white/70">

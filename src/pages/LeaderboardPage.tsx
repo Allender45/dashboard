@@ -8,6 +8,8 @@ import { DepartmentLeaderboardSlide } from "../components/slideshow/DepartmentLe
 import { PlanFactSlide } from "../components/slideshow/PlanFactSlide";
 import { ContestSlide } from "../components/slideshow/ContestSlide";
 import { NewsSlide } from "../components/slideshow/NewsSlide";
+import { getApiBase } from "../api/http";
+import { fetchContestTvResults, fetchPublicNewsLatest } from "../api/public";
 
 const SWITCH_MS = 30_000;
 const REFRESH_MS = 10 * 60_000;
@@ -38,18 +40,6 @@ type NewsSlide = {
   title: string;
   text: string;
   images: string[];
-};
-
-type ContestTvResults = {
-  contest?: {
-    id?: string;
-    name?: string;
-    period?: string;
-    metric?: string;
-    isPreview?: boolean;
-  };
-  winners?: Array<{ place?: number; employeeId?: string; employeeName?: string; value?: string; reward?: string }>;
-  ranking?: Array<{ place?: number; employeeId?: string; employeeName?: string; value?: string }>;
 };
 
 function randInt(min: number, max: number): number {
@@ -109,8 +99,7 @@ export function LeaderboardPage() {
 
   const sheetTableState = useDepartmentMetricsTable(sheetsInput ?? { spreadsheetId: "", gid: "" });
 
-  const DEFAULT_API_BASE = `${window.location.protocol}//${window.location.hostname}:4000`;
-  const API_BASE = (process.env.REACT_APP_API_BASE || DEFAULT_API_BASE).replace(/\/$/, "");
+  const API_BASE = useMemo(() => getApiBase(), []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -119,8 +108,7 @@ export function LeaderboardPage() {
       if (newsInFlightRef.current) return;
       newsInFlightRef.current = true;
       try {
-        const r = await fetch(`${API_BASE}/api/public/news/latest`, { signal: controller.signal });
-        const data = r.ok ? await r.json() : null;
+        const data = await fetchPublicNewsLatest(controller.signal);
         const n = (data as any)?.news;
         if (!n) return;
 
@@ -137,7 +125,8 @@ export function LeaderboardPage() {
           text: String(n.text ?? ""),
           images,
         });
-      } catch {
+      } catch (e) {
+        console.error("Failed to load news", e);
       } finally {
         newsInFlightRef.current = false;
       }
@@ -160,8 +149,7 @@ export function LeaderboardPage() {
       contestInFlightRef.current = true;
       setIsContestLoading(true);
       try {
-        const r = await fetch(`${API_BASE}/api/public/contest-tv/results`, { signal: controller.signal });
-        const data: ContestTvResults | null = r.ok ? await r.json() : null;
+        const data = await fetchContestTvResults(controller.signal);
         if (!data) return;
 
         const contestName = String(data.contest?.name ?? "Конкурс");
@@ -206,7 +194,8 @@ export function LeaderboardPage() {
             rows,
           },
         });
-      } catch {
+      } catch (e) {
+        console.error("Failed to load contest-tv results", e);
       } finally {
         contestInFlightRef.current = false;
         setIsContestLoading(false);
@@ -236,7 +225,13 @@ export function LeaderboardPage() {
       };
     });
 
-    const rows: LeaderboardRow[] = t.rows.map((r) => ({
+    const sortedByPoints = [...t.rows].sort((a, b) => {
+      const pointsA = parseFloat(String(a.points).replace(/[^\d.-]/g, "")) || 0;
+      const pointsB = parseFloat(String(b.points).replace(/[^\d.-]/g, "")) || 0;
+      return pointsB - pointsA;
+    });
+
+    const rows: LeaderboardRow[] = sortedByPoints.map((r) => ({
       c0: r.department,
       c1: r.convPhys,
       c2: r.leadReturn,
@@ -245,12 +240,6 @@ export function LeaderboardPage() {
       c5: r.planForecast,
       c6: r.points,
     }));
-
-    const sortedByPoints = [...t.rows].sort((a, b) => {
-      const pointsA = parseFloat(String(a.points).replace(/[^\d.-]/g, "")) || 0;
-      const pointsB = parseFloat(String(b.points).replace(/[^\d.-]/g, "")) || 0;
-      return pointsB - pointsA;
-    });
 
     const leaders: PodiumLeader[] = [];
     let place = 0;
@@ -323,7 +312,7 @@ export function LeaderboardPage() {
         leaders={departmentLeaderboardData.leaders}
         prize={{
           title: "Приз",
-          text: "Победитель рейтинга получает 1% от фактической кассы.",
+          text: "Победитель рейтинга получает 1% от фактической кассы. Если победителей несколько - 0,5%",
         }}
       />,
       // <PlanFactSlide

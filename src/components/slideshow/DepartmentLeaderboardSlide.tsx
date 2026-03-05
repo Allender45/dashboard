@@ -26,6 +26,7 @@ export function DepartmentLeaderboardSlide({
   showTop = true,
   showFooter = true,
 }: DepartmentLeaderboardSlideProps) {
+
   return (
     <div className="grid min-h-[calc(100vh-3rem)] grid-rows-[auto_1fr_auto] gap-4" data-role="page">
       {showTop && <TopLeaders leaders={leaders} />}
@@ -41,6 +42,7 @@ export function DepartmentLeaderboardSlide({
             period={period}
             columns={columns}
             rows={rows}
+            fontSize={20}
           />
         </div>
       </main>

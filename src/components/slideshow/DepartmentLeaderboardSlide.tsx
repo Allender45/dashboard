@@ -43,6 +43,8 @@ export function DepartmentLeaderboardSlide({
             columns={columns}
             rows={rows}
             fontSize={20}
+            prizePlaces={1}
+            rowLeaders={true}
           />
         </div>
       </main>

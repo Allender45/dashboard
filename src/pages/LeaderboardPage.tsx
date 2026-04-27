@@ -236,9 +236,8 @@ export function LeaderboardPage() {
       c1: r.convPhys,
       c2: r.leadReturn,
       c3: r.convJur,
-      c4: r.totalDefectPct,
-      c5: r.planForecast,
-      c6: r.points,
+      c4: r.planForecast,
+      c5: r.points,
     }));
 
     const leaders: PodiumLeader[] = [];
@@ -301,6 +300,8 @@ export function LeaderboardPage() {
     };
   }, [remoteContestSlide, isContestLoading]);
 
+  console.log(departmentLeaderboardData)
+
   const renderSlides = useMemo(() => {
     const slideComponents = [
       <DepartmentLeaderboardSlide
@@ -312,8 +313,9 @@ export function LeaderboardPage() {
         leaders={departmentLeaderboardData.leaders}
         prize={{
           title: "Приз",
-          text: "Победитель рейтинга получает 1% от фактической кассы. Если победителей несколько - 0,5%",
+          text: "50 000₽ в копилку отдела, уважение и почитание.",
         }}
+        description={true}
       />,
       // <PlanFactSlide
       //   key="departments"

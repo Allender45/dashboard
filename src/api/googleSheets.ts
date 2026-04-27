@@ -3,14 +3,13 @@ export type DepartmentMetricsRow = {
     convPhys: string; // B
     leadReturn: string; // C
     convJur: string; // D
-    totalDefectPct: string; // E
-    planForecast: string; // F
-    points: string; // G
+    planForecast: string; // E
+    points: string; // F
 };
 
 export type DepartmentMetricsTable = {
     period: string;
-    headers: [string, string, string, string, string, string, string];
+    headers: [string, string, string, string, string, string];
     rows: DepartmentMetricsRow[];
 };
 
@@ -75,7 +74,7 @@ export async function fetchDepartmentMetricsTable(input: {
     const period = pickFirstNonEmpty(periodRow);
 
     // Запрос заголовков из A2:G2
-    const headersUrl = buildGvizUrl({ ...input, range: "A2:G2" });
+    const headersUrl = buildGvizUrl({ ...input, range: "A2:F2" });
     const headersRes = await fetch(headersUrl);
     if (!headersRes.ok) {
         throw new Error(`Google Sheets headers request failed: HTTP ${headersRes.status}`);
@@ -84,10 +83,10 @@ export async function fetchDepartmentMetricsTable(input: {
     const headersData = extractGvizJson(headersText);
     const headersRows = headersData?.table?.rows ?? [];
     const headerRow = headersRows[0]?.c ?? [];
-    const headers = [0, 1, 2, 3, 4, 5, 6].map((i) => cellToString(headerRow[i]).trim()) as DepartmentMetricsTable["headers"];
+    const headers = [0, 1, 2, 3, 4, 5].map((i) => cellToString(headerRow[i]).trim()) as DepartmentMetricsTable["headers"];
 
     // Запрос данных из A3:G11
-    const dataUrl = buildGvizUrl({ ...input, range: "A3:G11" });
+    const dataUrl = buildGvizUrl({ ...input, range: "A3:F11" });
         const dataRes = await fetch(dataUrl);
     if (!dataRes.ok) {
         throw new Error(`Google Sheets data request failed: HTTP ${dataRes.status}`);
@@ -108,9 +107,8 @@ export async function fetchDepartmentMetricsTable(input: {
                 convPhys: cellToString(c[1]),
                 leadReturn: cellToString(c[2]),
                 convJur: cellToString(c[3]),
-                totalDefectPct: cellToString(c[4]),
-                planForecast: cellToString(c[5]),
-                points: cellToString(c[6]),
+                planForecast: cellToString(c[4]),
+                points: cellToString(c[5]),
             };
         })
         .filter((x): x is DepartmentMetricsRow => Boolean(x));

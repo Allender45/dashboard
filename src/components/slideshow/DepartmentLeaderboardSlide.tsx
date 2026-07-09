@@ -30,7 +30,7 @@ export function DepartmentLeaderboardSlide({
                                            }: DepartmentLeaderboardSlideProps) {
 
     return (
-        <div className="grid min-h-[calc(100vh-3rem)] grid-rows-[auto_1fr_auto] gap-4" data-role="page">
+        <div className="grid h-full grid-rows-[auto_1fr_auto] gap-4" data-role="page">
             {showTop && <TopLeaders leaders={leaders}/>}
 
             <main
@@ -54,16 +54,12 @@ export function DepartmentLeaderboardSlide({
                     <div className={'text-[50px] font-bold'}>🎲 Как начисляются баллы?</div>
                     <div className={'text-[30px]'}>Показатели №1, 2, 3 <br/>(физическая конверсия, возврат с лида, юр. конверсия):</div>
                     <div className={'text-[30px]'}>
-                        1 место — 3 балла
+                        1 место — 3 балла, 2 — 2 балла, 3 — 1 балл
                     </div>
-                    <div className={'text-[30px]'}>2 место — 2 балла</div>
-                    <div className={'text-[30px]'}>3 место — 1 балл</div>
 
 
                     <div className={'text-[30px]'}>Показатель №4 — прогноз выполнения плана<br/>(самый жирный):</div>
-                    <div className={'text-[30px]'}>1 место — 6 баллов</div>
-                    <div className={'text-[30px]'}>2 место — 4 балла</div>
-                    <div className={'text-[30px]'}>3 место — 2 балла</div>
+                    <div className={'text-[30px]'}>1 место — 6 баллов, 2 — 4 балла, 3 — 2 балла</div>
 
 
                 </div>

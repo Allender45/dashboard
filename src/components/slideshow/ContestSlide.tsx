@@ -31,7 +31,7 @@ export function ContestSlide({
   const hasTableData = columns.length > 0 && rows.length > 0;
 
   return (
-    <div className="grid min-h-[calc(100vh-3rem)] grid-rows-[auto_1fr_auto] gap-4" data-role="page">
+    <div className="grid h-full grid-rows-[auto_1fr_auto] gap-4" data-role="page">
       {showTop && <TopLeaders title={title} leaders={leaders} />}
 
       <main

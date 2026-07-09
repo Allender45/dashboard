@@ -7,6 +7,7 @@ import { Slideshow } from "../components/slideshow/Slideshow";
 import { DepartmentLeaderboardSlide } from "../components/slideshow/DepartmentLeaderboardSlide";
 import { PlanFactSlide } from "../components/slideshow/PlanFactSlide";
 import { ContestSlide } from "../components/slideshow/ContestSlide";
+import { FooterClock } from "../components/FooterClock/FooterClock";
 import { NewsSlide } from "../components/slideshow/NewsSlide";
 import { getApiBase } from "../api/http";
 import { fetchContestTvResults, fetchPublicNewsLatest } from "../api/public";
@@ -300,8 +301,6 @@ export function LeaderboardPage() {
     };
   }, [remoteContestSlide, isContestLoading]);
 
-  console.log(departmentLeaderboardData)
-
   const renderSlides = useMemo(() => {
     const slideComponents = [
       <DepartmentLeaderboardSlide
@@ -352,5 +351,12 @@ export function LeaderboardPage() {
     return slideComponents;
   }, [departmentLeaderboardData, planFactData, contestData, remoteNews]);
 
-  return <Slideshow slides={renderSlides} switchMs={SWITCH_MS} />;
+  return (
+      <div className="flex flex-col h-screen bg-[#0b1220]">
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <Slideshow slides={renderSlides} switchMs={SWITCH_MS} />
+        </div>
+        <FooterClock />
+      </div>
+  );
 }

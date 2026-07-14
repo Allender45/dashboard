@@ -349,7 +349,7 @@ export function LeaderboardPage() {
     }
 
     return slideComponents;
-  }, [departmentLeaderboardData, planFactData, contestData, remoteNews]);
+  }, [departmentLeaderboardData, contestData, remoteNews]);
 
   return (
       <div className="flex flex-col h-screen bg-[#0b1220]">

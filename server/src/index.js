@@ -353,6 +353,62 @@ app.delete("/api/news/current/images/:id", authRequired, async (req, res) => {
   return res.json({ ok: true });
 });
 
+// ---------- MUSIC endpoints ----------
+app.get("/api/music/current", async (_req, res) => {
+  const db = await getDb();
+  const tracks = await db.all("SELECT id, name, path FROM music_tracks ORDER BY created_at ASC");
+  const settings = await db.get("SELECT mode FROM music_settings WHERE id = 1");
+  const mode = settings?.mode || "loop";
+  return res.json({ tracks, mode });
+});
+
+app.post("/api/music/upload", authRequired, uploadMusic.single("file"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "file is required" });
+
+  const db = await getDb();
+  const displayName = path.basename(req.file.originalname, path.extname(req.file.originalname))
+      .replace(/[^a-zA-Zа-яА-Я0-9 ]/g, " ")
+      .trim() || "Без названия";
+
+  const url = `/uploads/music/${req.file.filename}`;
+  const result = await db.run(
+      "INSERT INTO music_tracks (name, path) VALUES (?, ?)",
+      [displayName, url]
+  );
+
+  const track = await db.get(
+      "SELECT id, name, path FROM music_tracks WHERE id = ?",
+      [result.lastID]
+  );
+
+  return res.json(track);
+});
+
+app.delete("/api/music/:id", authRequired, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) return res.status(400).json({ error: "invalid id" });
+
+  const db = await getDb();
+  const track = await db.get("SELECT id FROM music_tracks WHERE id = ?", [id]);
+  if (!track) return res.status(404).json({ error: "not found" });
+
+  await db.run("DELETE FROM music_tracks WHERE id = ?", [id]);
+  return res.json({ ok: true });
+});
+
+app.put("/api/music/settings", authRequired, async (req, res) => {
+  const { mode } = req.body || {};
+  if (mode !== "loop" && mode !== "shuffle") {
+    return res.status(400).json({ error: "mode must be 'loop' or 'shuffle'" });
+  }
+
+  const db = await getDb();
+  await db.run("UPDATE music_settings SET mode = ? WHERE id = 1", [mode]);
+
+  const updated = await db.get("SELECT mode FROM music_settings WHERE id = 1");
+  return res.json({ mode: updated?.mode || "loop" });
+});
+
 app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
 });

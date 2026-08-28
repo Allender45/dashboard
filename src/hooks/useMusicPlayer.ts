@@ -9,8 +9,9 @@ export function useMusicPlayer() {
     const [tracks, setTracks] = useState<MusicTrack[]>([]);
     const [mode, setMode] = useState<"loop" | "shuffle">("loop");
     const [currentIndex, setCurrentIndex] = useState(0);
-    const [isPlaying, setIsPlaying] = useState(true);
+    const [isPlaying, setIsPlaying] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const initializedRef = useRef(false); // чтобы не дублировать инициализацию
 
     // Загрузка списка треков и режима
     useEffect(() => {
@@ -27,7 +28,7 @@ export function useMusicPlayer() {
         return () => controller.abort();
     }, []);
 
-    // Инициализация Audio элемента при изменении треков или текущего индекса
+    // Инициализация плеера при изменении треков или индекса
     useEffect(() => {
         if (!tracks.length) {
             if (audioRef.current) {
@@ -41,7 +42,7 @@ export function useMusicPlayer() {
         const track = tracks[currentIndex];
         if (!track) return;
 
-        // Создаём новый Audio элемент
+        // Создаём Audio, но пока не запускаем
         const audio = new Audio(`${API_BASE}${track.path}`);
         audioRef.current = audio;
 
@@ -49,14 +50,17 @@ export function useMusicPlayer() {
             if (mode === "loop") {
                 setCurrentIndex((prev) => (prev + 1) % tracks.length);
             } else {
-                // shuffle
                 const next = Math.floor(Math.random() * tracks.length);
                 setCurrentIndex(next);
             }
         };
 
         audio.addEventListener("ended", handleEnded);
-        audio.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+
+        // Если уже был инициирован запуск – пробуем play
+        if (initializedRef.current) {
+            audio.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+        }
 
         return () => {
             audio.removeEventListener("ended", handleEnded);
@@ -65,10 +69,37 @@ export function useMusicPlayer() {
         };
     }, [tracks, currentIndex, mode]);
 
-    // Функции управления
+    // Эффект для перехвата первого клика и запуска музыки
+    useEffect(() => {
+        if (initializedRef.current) return;
+        if (!tracks.length) return;
+
+        const handleFirstInteraction = () => {
+            if (audioRef.current) {
+                audioRef.current.play()
+                    .then(() => {
+                        setIsPlaying(true);
+                        initializedRef.current = true;
+                    })
+                    .catch(() => {});
+            }
+            // Удаляем слушатели после первого клика
+            document.removeEventListener("click", handleFirstInteraction);
+            document.removeEventListener("touchstart", handleFirstInteraction);
+        };
+
+        document.addEventListener("click", handleFirstInteraction);
+        document.addEventListener("touchstart", handleFirstInteraction);
+
+        return () => {
+            document.removeEventListener("click", handleFirstInteraction);
+            document.removeEventListener("touchstart", handleFirstInteraction);
+        };
+    }, [tracks]);
+
     const play = () => {
         if (audioRef.current) {
-            audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+            audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
         }
     };
 

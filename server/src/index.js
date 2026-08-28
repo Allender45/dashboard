@@ -20,6 +20,9 @@ const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, "..", "uploa
 const NEWS_UPLOADS_SUBDIR = "news";
 const NEWS_UPLOADS_DIR = path.join(UPLOADS_DIR, NEWS_UPLOADS_SUBDIR);
 
+const MUSIC_UPLOADS_DIR = path.join(UPLOADS_DIR, "music");
+fs.mkdirSync(MUSIC_UPLOADS_DIR, { recursive: true });
+
 fs.mkdirSync(NEWS_UPLOADS_DIR, { recursive: true });
 
 function pad2(n) {
@@ -58,6 +61,23 @@ const storage = multer.diskStorage({
     cb(null, name);
   },
 });
+
+const musicStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, MUSIC_UPLOADS_DIR),
+  filename: (_req, file, cb) => {
+    const ts = formatTimestampForFilename(new Date());
+    const safeBase = path
+        .basename(file.originalname)
+        .replace(/[^a-zA-Z0-9._-]+/g, "_")
+        .slice(0, 80);
+    const ext = path.extname(safeBase);
+    const base = path.basename(safeBase, ext);
+    const name = `${ts}_${base}${ext}`;
+    cb(null, name);
+  },
+});
+
+const uploadMusic = multer({ storage: musicStorage });
 
 const upload = multer({ storage });
 

@@ -11,6 +11,7 @@ import { FooterClock } from "../components/FooterClock/FooterClock";
 import { NewsSlide } from "../components/slideshow/NewsSlide";
 import { getApiBase } from "../api/http";
 import { fetchContestTvResults, fetchPublicNewsLatest } from "../api/public";
+import { MusicPlayer } from "../components/MusicPlayer/MusicPlayer";
 
 const SWITCH_MS = 30_000;
 const REFRESH_MS = 10 * 60_000;
@@ -357,6 +358,7 @@ export function LeaderboardPage() {
           <Slideshow slides={renderSlides} switchMs={SWITCH_MS} />
         </div>
         <FooterClock />
+        <MusicPlayer />
       </div>
   );
 }

@@ -21,8 +21,6 @@ export function LeaderboardTable(props: {
 }) {
     const {title, period, metric, columns, rows, compact, fontSize, prizePlaces, rowLeaders} = props;
 
-    console.log(rows)
-
     const columnLeaders: Record<string, string> = {};
     if (rowLeaders) {
         for (const col of columns) {

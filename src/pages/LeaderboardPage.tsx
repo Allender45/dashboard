@@ -128,6 +128,7 @@ export function LeaderboardPage() {
           images,
         });
       } catch (e) {
+        if (controller.signal.aborted) return;
         console.error("Failed to load news", e);
       } finally {
         newsInFlightRef.current = false;
@@ -197,6 +198,7 @@ export function LeaderboardPage() {
           },
         });
       } catch (e) {
+        if (controller.signal.aborted) return;
         console.error("Failed to load contest-tv results", e);
       } finally {
         contestInFlightRef.current = false;
@@ -301,6 +303,8 @@ export function LeaderboardPage() {
       isLoading: isContestLoading,
     };
   }, [remoteContestSlide, isContestLoading]);
+
+  console.log(contestData)
 
   const renderSlides = useMemo(() => {
     const slideComponents = [

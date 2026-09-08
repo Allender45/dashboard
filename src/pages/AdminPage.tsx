@@ -3,7 +3,7 @@ import {
     fetchMusicState,
     uploadMusic,
     deleteMusic,
-    updateMusicMode,
+    updateMusicSettings,
     type MusicTrack,
     type MusicState
 } from "../api/music";
@@ -290,8 +290,22 @@ export function AdminPage() {
         setMusicLoading(true);
         setMusicError("");
         try {
-            const result = await updateMusicMode(mode, token);
+            const result = await updateMusicSettings({ mode }, token);
             setMusicState((prev) => prev ? { ...prev, mode: result.mode } : null);
+        } catch (err: any) {
+            setMusicError(err.message || String(err));
+        } finally {
+            setMusicLoading(false);
+        }
+    }
+
+    async function handleChangeRepeat(repeat: boolean) {
+        if (!token) return;
+        setMusicLoading(true);
+        setMusicError("");
+        try {
+            const result = await updateMusicSettings({ repeat }, token);
+            setMusicState((prev) => prev ? { ...prev, repeat: result.repeat } : null);
         } catch (err: any) {
             setMusicError(err.message || String(err));
         } finally {
@@ -457,16 +471,27 @@ export function AdminPage() {
                     {musicError && <div className="rounded-[14px] border border-red-400/20 bg-red-500/10 p-3">{musicError}</div>}
 
                     <div className="flex items-center gap-4">
-                        <span className="text-white/80">Режим:</span>
+                        <span className="text-white/80">Порядок:</span>
                         <select
                             value={musicState?.mode || "loop"}
                             onChange={(e) => handleChangeMode(e.target.value as "loop" | "shuffle")}
                             disabled={musicLoading}
                             className="rounded-[12px] border border-white/10 bg-black/20 px-3 py-2 disabled:opacity-50"
                         >
-                            <option value="loop">По кругу</option>
+                            <option value="loop">По очереди</option>
                             <option value="shuffle">Случайно</option>
                         </select>
+
+                        <label className="flex items-center gap-2 text-white/80">
+                            <input
+                                type="checkbox"
+                                checked={musicState?.repeat ?? true}
+                                onChange={(e) => handleChangeRepeat(e.target.checked)}
+                                disabled={musicLoading}
+                                className="h-4 w-4"
+                            />
+                            Повторять
+                        </label>
                     </div>
 
                     <div>

@@ -92,75 +92,69 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
 });
 
-app.get("/api/public/contest-tv/results", async (_req, res) => {
-  const CONTEST_TV_URL = process.env.CONTEST_TV_URL || "https://xn--80aaijde3bzad4a.xn--p1ai/contest-tv/results";
-  const token = process.env.CONTEST_TV_TOKEN;
-  if (!token) {
-    return res.status(500).json({ error: "CONTEST_TV_TOKEN is not configured" });
-  }
-
+function proxyUpstreamJson(res, upstreamUrl, token, tokenHeaderName) {
   function requestUpstream(url, redirectsLeft) {
     if (url.protocol !== "https:") {
-      return res.status(500).json({ error: "CONTEST_TV_URL must be https" });
+      return res.status(500).json({ error: "Upstream URL must be https" });
     }
 
     const reqUpstream = https.request(
-      {
-        protocol: url.protocol,
-        hostname: url.hostname,
-        port: url.port ? Number(url.port) : 443,
-        path: `${url.pathname}${url.search}`,
-        method: "GET",
-        headers: {
-          "X-Contest-Tv-Token": token,
-          Accept: "application/json",
-          "User-Agent": "dashboard-proxy/1.0",
+        {
+          protocol: url.protocol,
+          hostname: url.hostname,
+          port: url.port ? Number(url.port) : 443,
+          path: `${url.pathname}${url.search}`,
+          method: "GET",
+          headers: {
+            [tokenHeaderName]: token,
+            Accept: "application/json",
+            "User-Agent": "dashboard-proxy/1.0",
+          },
+          timeout: 10_000,
         },
-        timeout: 10_000,
-      },
-      (r) => {
-        let body = "";
-        r.setEncoding("utf8");
-        r.on("data", (chunk) => {
-          body += chunk;
-        });
-        r.on("end", () => {
-          const status = r.statusCode || 0;
-          const location = r.headers?.location;
-
-          if (status >= 300 && status < 400 && location && redirectsLeft > 0) {
-            try {
-              const nextUrl = new URL(location, url);
-              return requestUpstream(nextUrl, redirectsLeft - 1);
-            } catch {
-              return res.status(502).json({
-                error: "Upstream redirect has invalid location",
-                upstreamStatus: status,
-                upstreamLocation: String(location),
-              });
-            }
-          }
-
-          if (status >= 200 && status < 300) {
-            try {
-              const data = JSON.parse(body);
-              return res.json(data);
-            } catch {
-              return res.status(502).json({
-                error: "Upstream returned invalid JSON",
-                upstreamStatus: status,
-                upstreamBody: String(body || "").slice(0, 2000),
-              });
-            }
-          }
-
-          return res.status(502).json({
-            error: "Upstream error",
-            upstreamStatus: status,
-            upstreamBody: String(body || "").slice(0, 2000),
+        (r) => {
+          let body = "";
+          r.setEncoding("utf8");
+          r.on("data", (chunk) => {
+            body += chunk;
           });
-        });
-      },
+          r.on("end", () => {
+            const status = r.statusCode || 0;
+            const location = r.headers?.location;
+
+            if (status >= 300 && status < 400 && location && redirectsLeft > 0) {
+              try {
+                const nextUrl = new URL(location, url);
+                return requestUpstream(nextUrl, redirectsLeft - 1);
+              } catch {
+                return res.status(502).json({
+                  error: "Upstream redirect has invalid location",
+                  upstreamStatus: status,
+                  upstreamLocation: String(location),
+                });
+              }
+            }
+
+            if (status >= 200 && status < 300) {
+              try {
+                const data = JSON.parse(body);
+                return res.json(data);
+              } catch {
+                return res.status(502).json({
+                  error: "Upstream returned invalid JSON",
+                  upstreamStatus: status,
+                  upstreamBody: String(body || "").slice(0, 2000),
+                });
+              }
+            }
+
+            return res.status(502).json({
+              error: "Upstream error",
+              upstreamStatus: status,
+              upstreamBody: String(body || "").slice(0, 2000),
+            });
+          });
+        },
     );
 
     reqUpstream.on("timeout", () => {
@@ -174,8 +168,28 @@ app.get("/api/public/contest-tv/results", async (_req, res) => {
     reqUpstream.end();
   }
 
+  requestUpstream(upstreamUrl, 5);
+}
+
+app.get("/api/public/contest-tv/results", async (_req, res) => {
+  const CONTEST_TV_URL = process.env.CONTEST_TV_URL || "https://xn--80aaijde3bzad4a.xn--p1ai/contest-tv/results";
+  const token = process.env.CONTEST_TV_TOKEN;
+  if (!token) {
+    return res.status(500).json({ error: "CONTEST_TV_TOKEN is not configured" });
+  }
   const url = new URL(CONTEST_TV_URL);
-  return requestUpstream(url, 5);
+  return proxyUpstreamJson(res, url, token, "X-Contest-Tv-Token");
+});
+
+app.get("/api/public/team-battle-leaderboard", async (_req, res) => {
+  const TEAM_BATTLE_LEADERBOARD_URL =
+      process.env.TEAM_BATTLE_LEADERBOARD_URL || "https://xn--80aaijde3bzad4a.xn--p1ai/showcase-api/team-battle-leaderboard/";
+  const token = process.env.CONTEST_TV_TOKEN;
+  if (!token) {
+    return res.status(500).json({ error: "CONTEST_TV_TOKEN is not configured" });
+  }
+  const url = new URL(TEAM_BATTLE_LEADERBOARD_URL);
+  return proxyUpstreamJson(res, url, token, "X-Contest-Tv-Token");
 });
 
 app.post("/api/auth/login", async (req, res) => {
@@ -357,9 +371,10 @@ app.delete("/api/news/current/images/:id", authRequired, async (req, res) => {
 app.get("/api/music/current", async (_req, res) => {
   const db = await getDb();
   const tracks = await db.all("SELECT id, name, path FROM music_tracks ORDER BY created_at ASC");
-  const settings = await db.get("SELECT mode FROM music_settings WHERE id = 1");
+  const settings = await db.get("SELECT mode, repeat_enabled FROM music_settings WHERE id = 1");
   const mode = settings?.mode || "loop";
-  return res.json({ tracks, mode });
+  const repeat = Boolean(settings?.repeat_enabled ?? 1);
+  return res.json({ tracks, mode, repeat });
 });
 
 app.post("/api/music/upload", authRequired, uploadMusic.single("file"), async (req, res) => {
@@ -397,16 +412,36 @@ app.delete("/api/music/:id", authRequired, async (req, res) => {
 });
 
 app.put("/api/music/settings", authRequired, async (req, res) => {
-  const { mode } = req.body || {};
-  if (mode !== "loop" && mode !== "shuffle") {
-    return res.status(400).json({ error: "mode must be 'loop' or 'shuffle'" });
+  const { mode, repeat } = req.body || {};
+
+  const updates = [];
+  const params = [];
+
+  if (mode !== undefined) {
+    if (mode !== "loop" && mode !== "shuffle") {
+      return res.status(400).json({ error: "mode must be 'loop' or 'shuffle'" });
+    }
+    updates.push("mode = ?");
+    params.push(mode);
+  }
+
+  if (repeat !== undefined) {
+    if (typeof repeat !== "boolean") {
+      return res.status(400).json({ error: "repeat must be boolean" });
+    }
+    updates.push("repeat_enabled = ?");
+    params.push(repeat ? 1 : 0);
+  }
+
+  if (updates.length === 0) {
+    return res.status(400).json({ error: "mode or repeat is required" });
   }
 
   const db = await getDb();
-  await db.run("UPDATE music_settings SET mode = ? WHERE id = 1", [mode]);
+  await db.run(`UPDATE music_settings SET ${updates.join(", ")} WHERE id = 1`, params);
 
-  const updated = await db.get("SELECT mode FROM music_settings WHERE id = 1");
-  return res.json({ mode: updated?.mode || "loop" });
+  const updated = await db.get("SELECT mode, repeat_enabled FROM music_settings WHERE id = 1");
+  return res.json({ mode: updated?.mode || "loop", repeat: Boolean(updated?.repeat_enabled ?? 1) });
 });
 
 app.listen(PORT, () => {

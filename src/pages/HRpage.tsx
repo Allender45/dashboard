@@ -16,7 +16,7 @@ import {ContestHrSlide} from "../components/slideshow/ContestHrSlide";
 const REFRESH_MS = 10 * 60_000;
 
 type LeaderboardSlide = {
-    id: "leaders" | "departments" | "participants";
+    id: string;
     kind: "leaderboard";
     showTop: boolean;
     showFooter: boolean;
@@ -36,7 +36,7 @@ type LeaderboardSlide = {
 };
 
 export function HRpage() {
-    const [remoteContestSlide, setRemoteContestSlide] = useState<LeaderboardSlide | null>(null);
+    const [remoteContestSlides, setRemoteContestSlides] = useState<LeaderboardSlide[]>([]);
     const [isContestLoading, setIsContestLoading] = useState(true);
     const contestInFlightRef = useRef(false);
 
@@ -66,48 +66,55 @@ export function HRpage() {
                 const data = await fetchContestTvResults(controller.signal);
                 if (!data) return;
 
-                const contestName = String(data.contest?.name ?? "Конкурс");
-                const period = String(data.contest?.period ?? "");
-                const metric = String(data.contest?.metric ?? "");
+                const contests = Array.isArray(data.contests) ? data.contests : [];
 
-                const winners = Array.isArray(data.winners) ? data.winners : [];
-                const leaders: PodiumLeader[] = winners
-                    .filter((x) => x && (x.place === 1 || x.place === 2 || x.place === 3))
-                    .map((x) => {
-                        const place = x.place as 1 | 2 | 3;
-                        const name = String(x.employeeName ?? "");
-                        const value = String(x.value ?? "");
-                        const reward = String(x.reward ?? "");
-                        const metricText = [value, reward].filter((s) => Boolean(String(s).trim())).join(" · ");
-                        return { place, name, metric: metricText };
-                    });
+                const slides: LeaderboardSlide[] = contests.map((item, index) => {
+                    const contestName = String(item?.contest?.name ?? "Конкурс");
+                    const period = String(item?.contest?.period ?? "");
+                    const metric = String(item?.contest?.metric ?? "");
+                    const contestId = item?.contest?.id ? String(item.contest.id) : String(index);
 
-                const ranking = Array.isArray(data.ranking) ? data.ranking : [];
-                const rows: LeaderboardRow[] = ranking.map((x) => ({
-                    place: String(x?.place ?? ""),
-                    name: String(x?.employeeName ?? ""),
-                    value: String(x?.value ?? ""),
-                }));
+                    const winners = Array.isArray(item?.winners) ? item.winners : [];
+                    const leaders: PodiumLeader[] = winners
+                        .filter((x) => x && (x.place === 1 || x.place === 2 || x.place === 3))
+                        .map((x) => {
+                            const place = x.place as 1 | 2 | 3;
+                            const name = String(x.employeeName ?? "");
+                            const value = String(x.value ?? "");
+                            const reward = String(x.reward ?? "");
+                            const metricText = [value, reward].filter((s) => Boolean(String(s).trim())).join(" · ");
+                            return { place, name, metric: metricText };
+                        });
 
-                setRemoteContestSlide({
-                    id: "participants",
-                    kind: "leaderboard",
-                    showTop: true,
-                    showFooter: false,
-                    leaders,
-                    table: {
-                        title: contestName,
-                        hint: "",
-                        period,
-                        metric,
-                        columns: [
-                            { key: "place", label: "Место", align: "left" },
-                            { key: "name", label: "ФИО", align: "center" },
-                            { key: "value", label: "Результат", align: "right" },
-                        ],
-                        rows,
-                    },
+                    const ranking = Array.isArray(item?.ranking) ? item.ranking : [];
+                    const rows: LeaderboardRow[] = ranking.map((x) => ({
+                        place: String(x?.place ?? ""),
+                        name: String(x?.employeeName ?? ""),
+                        value: String(x?.value ?? ""),
+                    }));
+
+                    return {
+                        id: `contest-${contestId}`,
+                        kind: "leaderboard" as const,
+                        showTop: true,
+                        showFooter: false,
+                        leaders,
+                        table: {
+                            title: contestName,
+                            hint: "",
+                            period,
+                            metric,
+                            columns: [
+                                { key: "place", label: "Место", align: "left" as const },
+                                { key: "name", label: "ФИО", align: "center" as const },
+                                { key: "value", label: "Результат", align: "right" as const },
+                            ],
+                            rows,
+                        },
+                    };
                 });
+
+                setRemoteContestSlides(slides);
             } catch (e) {
                 console.error("Failed to load contest-tv results", e);
             } finally {
@@ -174,67 +181,20 @@ export function HRpage() {
         return { columns, rows, period: t.period, leaders };
     }, [sheetTableState]);
 
-    const contestData = useMemo(() => {
-        if (remoteContestSlide) {
-            return {
-                title: remoteContestSlide.table.title,
-                period: remoteContestSlide.table.period,
-                metric: remoteContestSlide.table.metric,
-                columns: remoteContestSlide.table.columns,
-                rows: remoteContestSlide.table.rows,
-                leaders: remoteContestSlide.leaders ?? [],
-                prize: remoteContestSlide.prize,
-                showTop: remoteContestSlide.showTop,
-                showFooter: remoteContestSlide.showFooter,
-                isLoading: isContestLoading,
-            };
-        }
-        return {
-            title: "Конкурс",
-            period: "",
-            metric: "",
-            columns: [],
-            rows: [],
-            leaders: [],
-            prize: undefined,
-            showTop: true,
-            showFooter: false,
-            isLoading: isContestLoading,
-        };
-    }, [remoteContestSlide, isContestLoading]);
-
-    const renderSlides = useMemo(() => {
-        const slideComponents = [
-            <DepartmentLeaderboardHrSlide
-                key="leaders"
-                title="Рейтинг отделов"
-                period={departmentLeaderboardData.period}
-                columns={departmentLeaderboardData.columns}
-                rows={departmentLeaderboardData.rows}
-                leaders={departmentLeaderboardData.leaders}
-                prize={{
-                    title: "Приз",
-                    text: "50 000₽ в копилку отдела, уважение и почитание.",
-                }}
-                description={true}
-            />,
-            <ContestSlide
-                key="contest"
-                title={contestData.title}
-                period={contestData.period}
-                metric={contestData.metric}
-                columns={contestData.columns}
-                rows={contestData.rows}
-                leaders={contestData.leaders}
-                prize={contestData.prize}
-                showTop={contestData.showTop}
-                showFooter={contestData.showFooter}
-                isLoading={contestData.isLoading}
-            />,
-        ];
-
-        return slideComponents;
-    }, [departmentLeaderboardData, contestData]);
+    const contestSlidesData = useMemo(() => {
+        return remoteContestSlides.map((slide) => ({
+            id: slide.id,
+            title: slide.table.title,
+            period: slide.table.period,
+            metric: slide.table.metric,
+            columns: slide.table.columns,
+            rows: slide.table.rows,
+            leaders: slide.leaders ?? [],
+            prize: slide.prize,
+            showTop: slide.showTop,
+            showFooter: slide.showFooter,
+        }));
+    }, [remoteContestSlides]);
 
     return (
         <div className="flex flex-col  bg-[#0b1220]">
@@ -255,16 +215,32 @@ export function HRpage() {
                                 rowLeaders={true}
                             />
 
-                            <LeaderboardTable
-                                title={contestData.title}
-                                period={contestData.period}
-                                metric={contestData.metric}
-                                columns={contestData.columns}
-                                rows={contestData.rows}
-                                fontSize={20}
-                                prizePlaces={1}
-                                rowLeaders={true}
-                            />
+                            {contestSlidesData.length > 0 ? (
+                                contestSlidesData.map((contest) => (
+                                    <LeaderboardTable
+                                        key={contest.id}
+                                        title={contest.title}
+                                        period={contest.period}
+                                        metric={contest.metric}
+                                        columns={contest.columns}
+                                        rows={contest.rows}
+                                        fontSize={20}
+                                        prizePlaces={1}
+                                        rowLeaders={true}
+                                    />
+                                ))
+                            ) : (
+                                <LeaderboardTable
+                                    title="Конкурс"
+                                    period=""
+                                    metric=""
+                                    columns={[]}
+                                    rows={[]}
+                                    fontSize={20}
+                                    prizePlaces={1}
+                                    rowLeaders={true}
+                                />
+                            )}
                         </div>
                     </main>
                 </div>

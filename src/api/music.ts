@@ -12,6 +12,7 @@ export type MusicTrack = {
 export type MusicState = {
     tracks: MusicTrack[];
     mode: "loop" | "shuffle";
+    repeat: boolean;
 };
 
 // Получить текущее состояние (публичный эндпоинт)
@@ -49,19 +50,22 @@ export async function deleteMusic(id: number, token: string): Promise<void> {
     }
 }
 
-// Обновить режим воспроизведения (требуется токен)
-export async function updateMusicMode(mode: "loop" | "shuffle", token: string): Promise<{ mode: "loop" | "shuffle" }> {
+// Обновить настройки воспроизведения (требуется токен)
+export async function updateMusicSettings(
+    settings: { mode?: "loop" | "shuffle"; repeat?: boolean },
+    token: string,
+): Promise<{ mode: "loop" | "shuffle"; repeat: boolean }> {
     const res = await fetch(`${API_BASE}/api/music/settings`, {
         method: "PUT",
         headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ mode }),
+        body: JSON.stringify(settings),
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error || "Update mode failed");
+        throw new Error(err?.error || "Update settings failed");
     }
     return res.json();
 }

@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type PodiumLeader } from "../components/leaderboard/Podium";
 import { type LeaderboardColumn, type LeaderboardRow } from "../components/leaderboard/LeaderboardTable";
-import { env, requireEnv } from "../config/env";
-import { useDepartmentMetricsTable } from "../hooks/useSheetTable";
 import { Slideshow } from "../components/slideshow/Slideshow";
 import { DepartmentLeaderboardSlide } from "../components/slideshow/DepartmentLeaderboardSlide";
 import { PlanFactSlide } from "../components/slideshow/PlanFactSlide";
@@ -10,14 +8,14 @@ import { ContestSlide } from "../components/slideshow/ContestSlide";
 import { FooterClock } from "../components/FooterClock/FooterClock";
 import { NewsSlide } from "../components/slideshow/NewsSlide";
 import { getApiBase } from "../api/http";
-import { fetchContestTvResults, fetchPublicNewsLatest } from "../api/public";
+import { fetchContestTvResults, fetchPublicNewsLatest, fetchTeamBattleLeaderboard } from "../api/public";
 import { MusicPlayer } from "../components/MusicPlayer/MusicPlayer";
 
 const SWITCH_MS = 30_000;
 const REFRESH_MS = 10 * 60_000;
 
 type LeaderboardSlide = {
-  id: "leaders" | "departments" | "participants";
+  id: string;
   kind: "leaderboard";
   showTop: boolean;
   showFooter: boolean;
@@ -52,6 +50,25 @@ function formatNumber(n: number): string {
   return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 }
 
+function formatMetricValue(value: unknown, format: unknown): string {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return String(value ?? "");
+  const rounded = Number.isInteger(num) ? num : Math.round(num * 100) / 100;
+  return format === "percent" ? `${rounded}%` : String(rounded);
+}
+
+function formatPeriodRu(start: unknown, end: unknown): string {
+  const fmt = (s: unknown) => {
+    const parts = String(s ?? "").split("-");
+    if (parts.length !== 3) return String(s ?? "");
+    const [y, m, d] = parts;
+    return `${d}.${m}.${y}`;
+  };
+  const a = fmt(start);
+  const b = fmt(end);
+  return a && b ? `${a} — ${b}` : a || b;
+}
+
 function getDepartmentRows(): LeaderboardRow[] {
   const departments = [
     "Разгрузчики",
@@ -83,23 +100,12 @@ function getDepartmentRows(): LeaderboardRow[] {
 
 export function LeaderboardPage() {
   const [remoteNews, setRemoteNews] = useState<NewsSlide | null>(null);
-  const [remoteContestSlide, setRemoteContestSlide] = useState<LeaderboardSlide | null>(null);
+  const [remoteContestSlides, setRemoteContestSlides] = useState<LeaderboardSlide[]>([]);
   const [isContestLoading, setIsContestLoading] = useState(true);
+  const [remoteTeamBattle, setRemoteTeamBattle] = useState<LeaderboardSlide | null>(null);
   const newsInFlightRef = useRef(false);
   const contestInFlightRef = useRef(false);
-
-  const sheetsInput = useMemo(() => {
-    try {
-      return {
-        spreadsheetId: requireEnv("REACT_APP_SHEETS_SPREADSHEET_ID", env.spreadsheetId),
-        gid: requireEnv("REACT_APP_SHEETS_GID", env.gid),
-      };
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const sheetTableState = useDepartmentMetricsTable(sheetsInput ?? { spreadsheetId: "", gid: "" });
+  const teamBattleInFlightRef = useRef(false);
 
   const API_BASE = useMemo(() => getApiBase(), []);
 
@@ -155,48 +161,55 @@ export function LeaderboardPage() {
         const data = await fetchContestTvResults(controller.signal);
         if (!data) return;
 
-        const contestName = String(data.contest?.name ?? "Конкурс");
-        const period = String(data.contest?.period ?? "");
-        const metric = String(data.contest?.metric ?? "");
+        const contests = Array.isArray(data.contests) ? data.contests : [];
 
-        const winners = Array.isArray(data.winners) ? data.winners : [];
-        const leaders: PodiumLeader[] = winners
-          .filter((x) => x && (x.place === 1 || x.place === 2 || x.place === 3))
-          .map((x) => {
-            const place = x.place as 1 | 2 | 3;
-            const name = String(x.employeeName ?? "");
-            const value = String(x.value ?? "");
-            const reward = String(x.reward ?? "");
-            const metricText = [value, reward].filter((s) => Boolean(String(s).trim())).join(" · ");
-            return { place, name, metric: metricText };
-          });
+        const slides: LeaderboardSlide[] = contests.map((item, index) => {
+          const contestName = String(item?.contest?.name ?? "Конкурс");
+          const period = String(item?.contest?.period ?? "");
+          const metric = String(item?.contest?.metric ?? "");
+          const contestId = item?.contest?.id ? String(item.contest.id) : String(index);
 
-        const ranking = Array.isArray(data.ranking) ? data.ranking : [];
-        const rows: LeaderboardRow[] = ranking.map((x) => ({
-          place: String(x?.place ?? ""),
-          name: String(x?.employeeName ?? ""),
-          value: String(x?.value ?? ""),
-        }));
+          const winners = Array.isArray(item?.winners) ? item.winners : [];
+          const leaders: PodiumLeader[] = winners
+              .filter((x) => x && (x.place === 1 || x.place === 2 || x.place === 3))
+              .map((x) => {
+                const place = x.place as 1 | 2 | 3;
+                const name = String(x.employeeName ?? "");
+                const value = String(x.value ?? "");
+                const reward = String(x.reward ?? "");
+                const metricText = [value, reward].filter((s) => Boolean(String(s).trim())).join(" · ");
+                return { place, name, metric: metricText };
+              });
 
-        setRemoteContestSlide({
-          id: "participants",
-          kind: "leaderboard",
-          showTop: true,
-          showFooter: false,
-          leaders,
-          table: {
-            title: contestName,
-            hint: "",
-            period,
-            metric,
-            columns: [
-              { key: "place", label: "Место", align: "left" },
-              { key: "name", label: "ФИО", align: "center" },
-              { key: "value", label: "Результат", align: "right" },
-            ],
-            rows,
-          },
+          const ranking = Array.isArray(item?.ranking) ? item.ranking : [];
+          const rows: LeaderboardRow[] = ranking.map((x) => ({
+            place: String(x?.place ?? ""),
+            name: String(x?.employeeName ?? ""),
+            value: String(x?.value ?? ""),
+          }));
+
+          return {
+            id: contestId,
+            kind: "leaderboard",
+            showTop: true,
+            showFooter: false,
+            leaders,
+            table: {
+              title: contestName,
+              hint: "",
+              period,
+              metric,
+              columns: [
+                { key: "place", label: "Место", align: "left" },
+                { key: "name", label: "ФИО", align: "center" },
+                { key: "value", label: "Результат", align: "right" },
+              ],
+              rows,
+            },
+          };
         });
+
+        setRemoteContestSlides(slides);
       } catch (e) {
         if (controller.signal.aborted) return;
         console.error("Failed to load contest-tv results", e);
@@ -215,54 +228,95 @@ export function LeaderboardPage() {
     };
   }, [API_BASE]);
 
-  const departmentLeaderboardData = useMemo(() => {
-    if (sheetTableState.status !== "success") {
-      return { columns: [], rows: [], period: "", leaders: [] };
-    }
-    const t = sheetTableState.data;
-    const columns: LeaderboardColumn[] = t.headers.map((label, i) => {
-      const key = `c${i}`;
-      return {
-        key,
-        label: String(label || ""),
-        align: i === 0 ? "left" : "right",
-      };
-    });
+  useEffect(() => {
+    const controller = new AbortController();
 
-    const sortedByPoints = [...t.rows].sort((a, b) => {
-      const pointsA = parseFloat(String(a.points).replace(/[^\d.-]/g, "")) || 0;
-      const pointsB = parseFloat(String(b.points).replace(/[^\d.-]/g, "")) || 0;
-      return pointsB - pointsA;
-    });
+    async function loadTeamBattle() {
+      if (teamBattleInFlightRef.current) return;
+      teamBattleInFlightRef.current = true;
+      try {
+        const res = await fetchTeamBattleLeaderboard(controller.signal);
+        const data = res?.data;
+        if (!data) return;
 
-    const rows: LeaderboardRow[] = sortedByPoints.map((r) => ({
-      c0: r.department,
-      c1: r.convPhys,
-      c2: r.leadReturn,
-      c3: r.convJur,
-      c4: r.planForecast,
-      c5: r.points,
-    }));
+        const contestName = String(data.contest?.name ?? "Рейтинг отделов");
+        const period = formatPeriodRu(data.contest?.period?.start, data.contest?.period?.end);
+        const prizeText = data.contest?.prize ? String(data.contest.prize) : "";
 
-    const leaders: PodiumLeader[] = [];
-    let place = 0;
-    let lastPoints: number | null = null;
-    for (const r of sortedByPoints) {
-      const points = parseFloat(String(r.points).replace(/[^\d.-]/g, "")) || 0;
-      if (lastPoints === null || points !== lastPoints) {
-        place += 1;
-        lastPoints = points;
+        const formulaMetrics = Array.isArray(data.formula_metrics) ? data.formula_metrics : [];
+        const columns: LeaderboardColumn[] = [
+          { key: "c0", label: "Отдел", align: "left" },
+          ...formulaMetrics.map((m, i) => ({
+            key: `c${i + 1}`,
+            label: String(m?.type ?? ""),
+            align: "right" as const,
+          })),
+          { key: `c${formulaMetrics.length + 1}`, label: "Баллы", align: "right" as const },
+        ];
+
+        const rankings = Array.isArray(data.rankings) ? data.rankings : [];
+        const rows: LeaderboardRow[] = rankings.map((r) => {
+          const row: LeaderboardRow = { c0: String(r?.department ?? "") };
+          formulaMetrics.forEach((m, i) => {
+            const metricKey = String(m?.type ?? "");
+            row[`c${i + 1}`] = formatMetricValue(r?.metrics?.[metricKey], m?.format);
+          });
+          row[`c${formulaMetrics.length + 1}`] = String(r?.score ?? "");
+          return row;
+        });
+
+        const leaders: PodiumLeader[] = rankings
+            .filter((r) => r?.rank === 1 || r?.rank === 2 || r?.rank === 3)
+            .map((r) => ({
+              place: r.rank as 1 | 2 | 3,
+              name: String(r?.department ?? ""),
+              metric: `Баллы: ${String(r?.score ?? "")}`,
+            }));
+
+        setRemoteTeamBattle({
+          id: "departments",
+          kind: "leaderboard",
+          showTop: true,
+          showFooter: Boolean(prizeText),
+          leaders,
+          prize: prizeText ? { title: "Приз", text: prizeText } : undefined,
+          table: {
+            title: contestName,
+            hint: "",
+            period,
+            columns,
+            rows,
+          },
+        });
+      } catch (e) {
+        if (controller.signal.aborted) return;
+        console.error("Failed to load team-battle-leaderboard", e);
+      } finally {
+        teamBattleInFlightRef.current = false;
       }
-      if (place > 3) break;
-      leaders.push({
-        place: place as 1 | 2 | 3,
-        name: String(r.department),
-        metric: `Баллы: ${String(r.points)}`,
-      });
     }
 
-    return { columns, rows, period: t.period, leaders };
-  }, [sheetTableState]);
+    loadTeamBattle();
+    const t = window.setInterval(loadTeamBattle, REFRESH_MS);
+    return () => {
+      window.clearInterval(t);
+      controller.abort();
+      teamBattleInFlightRef.current = false;
+    };
+  }, [API_BASE]);
+
+  const departmentLeaderboardData = useMemo(() => {
+    if (!remoteTeamBattle) {
+      return { columns: [], rows: [], period: "", leaders: [], prize: undefined as { title: string; text: string } | undefined };
+    }
+    return {
+      columns: remoteTeamBattle.table.columns,
+      rows: remoteTeamBattle.table.rows,
+      period: remoteTeamBattle.table.period ?? "",
+      leaders: remoteTeamBattle.leaders ?? [],
+      prize: remoteTeamBattle.prize,
+    };
+  }, [remoteTeamBattle]);
 
   const planFactData = useMemo(() => {
     return {
@@ -275,86 +329,85 @@ export function LeaderboardPage() {
     };
   }, []);
 
-  const contestData = useMemo(() => {
-    if (remoteContestSlide) {
-      return {
-        title: remoteContestSlide.table.title,
-        period: remoteContestSlide.table.period,
-        metric: remoteContestSlide.table.metric,
-        columns: remoteContestSlide.table.columns,
-        rows: remoteContestSlide.table.rows,
-        leaders: remoteContestSlide.leaders ?? [],
-        prize: remoteContestSlide.prize,
-        showTop: remoteContestSlide.showTop,
-        showFooter: remoteContestSlide.showFooter,
-        isLoading: isContestLoading,
-      };
-    }
-    return {
-      title: "Конкурс",
-      period: "",
-      metric: "",
-      columns: [],
-      rows: [],
-      leaders: [],
-      prize: undefined,
-      showTop: true,
-      showFooter: false,
-      isLoading: isContestLoading,
-    };
-  }, [remoteContestSlide, isContestLoading]);
-
-  console.log(contestData)
+  const contestSlidesData = useMemo(() => {
+    return remoteContestSlides.map((slide) => ({
+      id: slide.id,
+      title: slide.table.title,
+      period: slide.table.period,
+      metric: slide.table.metric,
+      columns: slide.table.columns,
+      rows: slide.table.rows,
+      leaders: slide.leaders ?? [],
+      prize: slide.prize,
+      showTop: slide.showTop,
+      showFooter: slide.showFooter,
+    }));
+  }, [remoteContestSlides]);
 
   const renderSlides = useMemo(() => {
     const slideComponents = [
       <DepartmentLeaderboardSlide
-        key="leaders"
-        title="Рейтинг отделов"
-        period={departmentLeaderboardData.period}
-        columns={departmentLeaderboardData.columns}
-        rows={departmentLeaderboardData.rows}
-        leaders={departmentLeaderboardData.leaders}
-        prize={{
-          title: "Приз",
-          text: "50 000₽ в копилку отдела, уважение и почитание.",
-        }}
-        description={true}
-      />,
-      // <PlanFactSlide
-      //   key="departments"
-      //   title="План / Факт по отделам"
-      //   columns={planFactData.columns}
-      //   rows={planFactData.rows}
-      // />,
-      <ContestSlide
-        key="contest"
-        title={contestData.title}
-        period={contestData.period}
-        metric={contestData.metric}
-        columns={contestData.columns}
-        rows={contestData.rows}
-        leaders={contestData.leaders}
-        prize={contestData.prize}
-        showTop={contestData.showTop}
-        showFooter={contestData.showFooter}
-        isLoading={contestData.isLoading}
+          key="leaders"
+          title="Рейтинг отделов"
+          period={departmentLeaderboardData.period}
+          columns={departmentLeaderboardData.columns}
+          rows={departmentLeaderboardData.rows}
+          leaders={departmentLeaderboardData.leaders}
+          prize={departmentLeaderboardData.prize}
+          showFooter={Boolean(departmentLeaderboardData.prize)}
+          description={true}
       />,
     ];
 
+    if (contestSlidesData.length > 0) {
+      for (const contest of contestSlidesData) {
+        slideComponents.push(
+            <ContestSlide
+                key={`contest-${contest.id}`}
+                title={contest.title}
+                period={contest.period}
+                metric={contest.metric}
+                columns={contest.columns}
+                rows={contest.rows}
+                leaders={contest.leaders}
+                prize={contest.prize}
+                showTop={contest.showTop}
+                showFooter={contest.showFooter}
+                isLoading={isContestLoading}
+            />,
+        );
+      }
+    } else {
+      slideComponents.push(
+          <ContestSlide
+              key="contest-empty"
+              title="Конкурс"
+              period=""
+              metric=""
+              columns={[]}
+              rows={[]}
+              leaders={[]}
+              prize={undefined}
+              showTop={true}
+              showFooter={false}
+              isLoading={isContestLoading}
+          />,
+      );
+    }
+
     if (remoteNews) {
       slideComponents.push(
-        <NewsSlide
-          key="news"
-          title={remoteNews.title}
-          text={remoteNews.text}
-          images={remoteNews.images}
-        />,
+          <NewsSlide
+              key="news"
+              title={remoteNews.title}
+              text={remoteNews.text}
+              images={remoteNews.images}
+          />,
       );
     }
 
     return slideComponents;
-  }, [departmentLeaderboardData, contestData, remoteNews]);
+  }, [departmentLeaderboardData, contestSlidesData, isContestLoading, remoteNews]);
 
   return (
       <div className="flex flex-col h-screen bg-[#0b1220]">

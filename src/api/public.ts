@@ -10,7 +10,7 @@ export type NewsSlideDto = {
   };
 };
 
-export type ContestTvResultsDto = {
+export type ContestTvResultDto = {
   contest?: {
     id?: unknown;
     name?: unknown;
@@ -20,6 +20,39 @@ export type ContestTvResultsDto = {
   };
   winners?: Array<{ place?: unknown; employeeId?: unknown; employeeName?: unknown; value?: unknown; reward?: unknown }>;
   ranking?: Array<{ place?: unknown; employeeId?: unknown; employeeName?: unknown; value?: unknown }>;
+};
+
+export type ContestTvResultsDto = {
+  contests?: ContestTvResultDto[];
+};
+
+export type TeamBattleFormulaMetricDto = {
+  type?: unknown;
+  format?: "percent" | "number" | unknown;
+  place_points?: { first?: unknown; second?: unknown; third?: unknown };
+};
+
+export type TeamBattleRankingDto = {
+  rank?: unknown;
+  department?: unknown;
+  label?: unknown;
+  metrics?: Record<string, unknown>;
+  score?: unknown;
+  position_change?: unknown;
+};
+
+export type TeamBattleLeaderboardDto = {
+  success?: unknown;
+  data?: {
+    contest?: {
+      name?: unknown;
+      contest_type?: unknown;
+      period?: { start?: unknown; end?: unknown };
+      prize?: unknown;
+    };
+    formula_metrics?: TeamBattleFormulaMetricDto[];
+    rankings?: TeamBattleRankingDto[];
+  };
 };
 
 export type LeaderboardSlideDto = {
@@ -48,4 +81,8 @@ export async function fetchPublicNewsLatest(signal?: AbortSignal): Promise<NewsS
 
 export async function fetchContestTvResults(signal?: AbortSignal): Promise<ContestTvResultsDto> {
   return fetchJson<ContestTvResultsDto>("/api/public/contest-tv/results", { signal });
+}
+
+export async function fetchTeamBattleLeaderboard(signal?: AbortSignal): Promise<TeamBattleLeaderboardDto> {
+  return fetchJson<TeamBattleLeaderboardDto>("/api/public/team-battle-leaderboard", { signal });
 }

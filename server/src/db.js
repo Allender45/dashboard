@@ -61,14 +61,21 @@ async function initDb(db) {
   await db.exec(`
     CREATE TABLE IF NOT EXISTS music_settings (
                                                 id INTEGER PRIMARY KEY CHECK (id = 1),
-                                                mode TEXT NOT NULL DEFAULT 'loop'
+                                                mode TEXT NOT NULL DEFAULT 'loop',
+                                                repeat_enabled INTEGER NOT NULL DEFAULT 1
     );
   `);
+
+  try {
+    await db.exec("ALTER TABLE music_settings ADD COLUMN repeat_enabled INTEGER NOT NULL DEFAULT 1;");
+  } catch {
+    // ignore
+  }
 
 // Вставить настройку по умолчанию, если её нет
   const settingsExists = await db.get("SELECT id FROM music_settings WHERE id = 1");
   if (!settingsExists) {
-    await db.run("INSERT INTO music_settings (id, mode) VALUES (1, 'loop')");
+    await db.run("INSERT INTO music_settings (id, mode, repeat_enabled) VALUES (1, 'loop', 1)");
   }
 }
 

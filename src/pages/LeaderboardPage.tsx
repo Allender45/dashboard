@@ -10,9 +10,11 @@ import { NewsSlide } from "../components/slideshow/NewsSlide";
 import { getApiBase } from "../api/http";
 import { fetchContestTvResults, fetchPublicNewsLatest, fetchTeamBattleLeaderboard } from "../api/public";
 import { MusicPlayer } from "../components/MusicPlayer/MusicPlayer";
+import { IframeSlide } from "../components/slideshow/IframeSlide";
 
-const SWITCH_MS = 30_000;
+const SWITCH_MS = 5_000;
 const REFRESH_MS = 10 * 60_000;
+const BATTLE_PORTAL_URL = `${getApiBase()}/battle-frame`;
 
 type LeaderboardSlide = {
   id: string;
@@ -346,18 +348,26 @@ export function LeaderboardPage() {
 
   const renderSlides = useMemo(() => {
     const slideComponents = [
-      <DepartmentLeaderboardSlide
-          key="leaders"
-          title="Рейтинг отделов"
-          period={departmentLeaderboardData.period}
-          columns={departmentLeaderboardData.columns}
-          rows={departmentLeaderboardData.rows}
-          leaders={departmentLeaderboardData.leaders}
-          prize={departmentLeaderboardData.prize}
-          showFooter={Boolean(departmentLeaderboardData.prize)}
-          description={true}
-      />,
+      // <DepartmentLeaderboardSlide
+      //     key="leaders"
+      //     title="Рейтинг отделов"
+      //     period={departmentLeaderboardData.period}
+      //     columns={departmentLeaderboardData.columns}
+      //     rows={departmentLeaderboardData.rows}
+      //     leaders={departmentLeaderboardData.leaders}
+      //     prize={departmentLeaderboardData.prize}
+      //     showFooter={Boolean(departmentLeaderboardData.prize)}
+      //     description={true}
+      // />,
     ];
+
+    slideComponents.push(
+        <IframeSlide
+            key="battle-portal"
+            src={BATTLE_PORTAL_URL}
+            title="Битва отделов"
+        />,
+    );
 
     if (contestSlidesData.length > 0) {
       for (const contest of contestSlidesData) {

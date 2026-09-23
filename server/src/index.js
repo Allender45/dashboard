@@ -20,6 +20,10 @@ const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, "..", "uploa
 const NEWS_UPLOADS_SUBDIR = "news";
 const NEWS_UPLOADS_DIR = path.join(UPLOADS_DIR, NEWS_UPLOADS_SUBDIR);
 
+// ---------- Battle portal frame proxy ----------
+const BATTLE_ORIGIN = process.env.BATTLE_ORIGIN || "https://razportal.duckdns.org";
+const BATTLE_GUEST_KEY = process.env.BATTLE_GUEST_KEY || "";
+
 const MUSIC_UPLOADS_DIR = path.join(UPLOADS_DIR, "music");
 fs.mkdirSync(MUSIC_UPLOADS_DIR, { recursive: true });
 
@@ -446,4 +450,29 @@ app.put("/api/music/settings", authRequired, async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
+});
+
+// HTML страницы битвы — для iframe
+app.get("/battle-frame", async (_req, res) => {
+  try {
+    const r = await fetch(`${BATTLE_ORIGIN}/battle.html?look=dark`, {
+      headers: { Cookie: `battle_guest=${BATTLE_GUEST_KEY}` },
+    });
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(await r.text());
+  } catch {
+    res.status(502).send("Портал недоступен");
+  }
+});
+
+// Данные страницы — её скрипт зовёт fetch("/api/battle") относительно фрейма
+app.get("/api/battle", async (_req, res) => {
+  try {
+    const r = await fetch(`${BATTLE_ORIGIN}/api/battle`, {
+      headers: { Cookie: `battle_guest=${BATTLE_GUEST_KEY}`, Accept: "application/json" },
+    });
+    res.json(await r.json());
+  } catch {
+    res.status(502).json({ error: "Портал недоступен" });
+  }
 });

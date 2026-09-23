@@ -24,6 +24,10 @@ export type ContestTvResultDto = {
 
 export type ContestTvResultsDto = {
   contests?: ContestTvResultDto[];
+  // Актуальный формат API: одиночный конкурс на верхнем уровне
+  contest?: ContestTvResultDto["contest"];
+  winners?: ContestTvResultDto["winners"];
+  ranking?: ContestTvResultDto["ranking"];
 };
 
 export type TeamBattleFormulaMetricDto = {

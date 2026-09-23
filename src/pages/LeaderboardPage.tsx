@@ -163,7 +163,9 @@ export function LeaderboardPage() {
         const data = await fetchContestTvResults(controller.signal);
         if (!data) return;
 
-        const contests = Array.isArray(data.contests) ? data.contests : [];
+        const contests = Array.isArray(data.contests)
+            ? data.contests
+            : (data.contest ? [data] : []);
 
         const slides: LeaderboardSlide[] = contests.map((item, index) => {
           const contestName = String(item?.contest?.name ?? "Конкурс");
@@ -368,6 +370,8 @@ export function LeaderboardPage() {
             title="Битва отделов"
         />,
     );
+
+    console.log(contestSlidesData)
 
     if (contestSlidesData.length > 0) {
       for (const contest of contestSlidesData) {

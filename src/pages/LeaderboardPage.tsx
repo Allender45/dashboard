@@ -12,7 +12,7 @@ import { fetchContestTvResults, fetchPublicNewsLatest, fetchTeamBattleLeaderboar
 import { MusicPlayer } from "../components/MusicPlayer/MusicPlayer";
 import { IframeSlide } from "../components/slideshow/IframeSlide";
 
-const SWITCH_MS = 5_000;
+const SWITCH_MS = 30_000;
 const REFRESH_MS = 10 * 60_000;
 const BATTLE_PORTAL_URL = `${getApiBase()}/battle-frame`;
 

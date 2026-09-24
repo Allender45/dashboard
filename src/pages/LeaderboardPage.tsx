@@ -371,54 +371,52 @@ export function LeaderboardPage() {
         />,
     );
 
-    console.log(contestSlidesData)
+    // if (contestSlidesData.length > 0) {
+    //   for (const contest of contestSlidesData) {
+    //     slideComponents.push(
+    //         <ContestSlide
+    //             key={`contest-${contest.id}`}
+    //             title={contest.title}
+    //             period={contest.period}
+    //             metric={contest.metric}
+    //             columns={contest.columns}
+    //             rows={contest.rows}
+    //             leaders={contest.leaders}
+    //             prize={contest.prize}
+    //             showTop={contest.showTop}
+    //             showFooter={contest.showFooter}
+    //             isLoading={isContestLoading}
+    //         />,
+    //     );
+    //   }
+    // } else {
+    //   slideComponents.push(
+    //       <ContestSlide
+    //           key="contest-empty"
+    //           title="Конкурс"
+    //           period=""
+    //           metric=""
+    //           columns={[]}
+    //           rows={[]}
+    //           leaders={[]}
+    //           prize={undefined}
+    //           showTop={true}
+    //           showFooter={false}
+    //           isLoading={isContestLoading}
+    //       />,
+    //   );
+    // }
 
-    if (contestSlidesData.length > 0) {
-      for (const contest of contestSlidesData) {
-        slideComponents.push(
-            <ContestSlide
-                key={`contest-${contest.id}`}
-                title={contest.title}
-                period={contest.period}
-                metric={contest.metric}
-                columns={contest.columns}
-                rows={contest.rows}
-                leaders={contest.leaders}
-                prize={contest.prize}
-                showTop={contest.showTop}
-                showFooter={contest.showFooter}
-                isLoading={isContestLoading}
-            />,
-        );
-      }
-    } else {
-      slideComponents.push(
-          <ContestSlide
-              key="contest-empty"
-              title="Конкурс"
-              period=""
-              metric=""
-              columns={[]}
-              rows={[]}
-              leaders={[]}
-              prize={undefined}
-              showTop={true}
-              showFooter={false}
-              isLoading={isContestLoading}
-          />,
-      );
-    }
-
-    if (remoteNews) {
-      slideComponents.push(
-          <NewsSlide
-              key="news"
-              title={remoteNews.title}
-              text={remoteNews.text}
-              images={remoteNews.images}
-          />,
-      );
-    }
+    // if (remoteNews) {
+    //   slideComponents.push(
+    //       <NewsSlide
+    //           key="news"
+    //           title={remoteNews.title}
+    //           text={remoteNews.text}
+    //           images={remoteNews.images}
+    //       />,
+    //   );
+    // }
 
     return slideComponents;
   }, [departmentLeaderboardData, contestSlidesData, isContestLoading, remoteNews]);
@@ -429,7 +427,7 @@ export function LeaderboardPage() {
           <Slideshow slides={renderSlides} switchMs={SWITCH_MS} />
         </div>
         <FooterClock />
-        <MusicPlayer />
+        {/*<MusicPlayer />*/}
       </div>
   );
 }
